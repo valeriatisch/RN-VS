@@ -13,6 +13,11 @@
 #include <signal.h>
 
 #define BACKLOG 10 // how many pending connections queue will hold
+typedef struct qotd{
+    char** quotes;
+    size_t len;
+}qotd;
+
 
 void sigchld_handler(int s){
 // waitpid() might overwrite errno, so we save and restore it:
@@ -32,12 +37,20 @@ void *get_in_addr(struct sockaddr *sa){
 }
 
 //get lines from .txt file
-char** readfile(char* filename){
-    char** quotes = malloc(sizeof(char**));
-    if(quotes == NULL){
+qotd* readfile(char* filename){
+
+    qotd* qotd1 = malloc(sizeof(qotd));
+    if(qotd1 == NULL){
+        perror("quote struct: faild alloc");
+        exit(1);
+    }
+
+    qotd1->quotes = malloc(sizeof(char**));
+    if(qotd1->quotes == NULL){
         perror("quotes:failed to alloc");
         exit(1);
     }
+    qotd1->len = 0;
 
     FILE* fp;
     char* line = NULL;
@@ -50,34 +63,35 @@ char** readfile(char* filename){
         exit(1);
     }
 
-    quotes[0] = 0; //count up for array length
-    int i = 1; //index
+    int i = 0; //index
     while((len = getline(&line,&n,fp)) != -1){
         //sscanf(line,"[^\n]");
         char* tmp;
-        quotes[0]++;
+        qotd1->len++;
+
         //delete '\n' from lines
         if((tmp = strchr(line,'\n')) != NULL){
             *tmp = "";
             //allocate memory for one line
-            quotes[i] = malloc(sizeof(char)*len);
-            if(quotes[i] == NULL){
+            qotd1->quotes[i] = malloc(sizeof(char)*len);
+            if(qotd1->quotes[i] == NULL){
                 perror("quote: failed to alloc");
                 exit(1);
             }
             //save quote in array
-            quotes[i++] = line;
+            qotd1->quotes[i++] = line;
         }
-            //no '\n' found -> stop getting lines
+
+        //no '\n' found -> stop getting lines
         else{
             //allocate memory for one line
-            quotes[i] = malloc(sizeof(char)*len);
-            if(quotes[i] == NULL){
+            qotd1->quotes[i] = malloc(sizeof(char)*len);
+            if(qotd1->quotes[i] == NULL){
                 perror("quote: failed to alloc");
                 exit(1);
             }
             //save quote in array
-            quotes[i++] = line;
+            qotd1->quotes[i++] = line;
             break;
         }
     }
@@ -87,12 +101,12 @@ char** readfile(char* filename){
         free(line);
     }
 
-    return quotes;
+    return qotd1;
 }
 
-void freequotes(char** quotes){
-    for(int i = quotes[0]; i > 0; i--){
-        free(quotes[i]);
+void freequotes(qotd* quotes){
+    for(int i = quotes->len; i > 0; i--){
+        free(quotes->quotes[i]);
     }
     free(quotes);
 }
@@ -107,7 +121,7 @@ int main(int argc, char *argv[]) {
 
     int port = argv[1];
     char *filename = argv[2];
-    char **quotes = readfile(filename);
+    qotd * qotd1 = readfile(filename);
 
 
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
@@ -185,8 +199,8 @@ int main(int argc, char *argv[]) {
 
         if (!fork()) { // this is the child process
             close(sockfd); // child doesn't need the listener
-            int r = rand() % ((int)quotes[0]-1);
-            if (send(new_fd, quotes[r+1], 13, 0) == -1)
+            int r = rand() % qotd1->len;
+            if (send(new_fd, qotd1->quotes[r], 13, 0) == -1)
                 perror("send");
             close(new_fd);
             exit(0);
@@ -194,6 +208,6 @@ int main(int argc, char *argv[]) {
         close(new_fd); // parent doesn't need this
     }
 
-    freequotes(quotes);
+    freequotes(qotd1);
     return 0;
 }
