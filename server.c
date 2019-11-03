@@ -70,7 +70,7 @@ qotd* readfile(char* filename){
         char* tmp;
         qotd1->len++;
 
-        int linelength = sscanf(line,"[^\nchar**]");
+        int linelength = sscanf(line,"[^\n]");
 
         //line without '\n'
         if(linelength == len){
