@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,7 +12,6 @@
 #include <signal.h>
 #include <time.h>
 
-#define PORT "2626"
 #define BACKLOG 1 // how many pending connections queue will hold
 typedef struct qotd{
     char** quotes;
@@ -76,7 +74,7 @@ qotd* readfile(char* filename){
         if(linelength == len){
             break;
         }
-        //save new line in array
+            //save new line in array
         else{
             //allocate memory for one line
             qotd1->quotes[i] = malloc(sizeof(char)*len);
@@ -141,7 +139,7 @@ int main(int argc, char *argv[]) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -187,7 +185,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    printf("server: waiting for connections...\n");
+    //printf("server: waiting for connections...\n");
 
     while (1) { // main accept() loop
         sin_size = sizeof their_addr;
@@ -198,13 +196,13 @@ int main(int argc, char *argv[]) {
         }
 
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *) &their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        //printf("server: got connection from %s\n", s);
 
         if (!fork()) { // this is the child process
             close(sockfd); // child doesn't need the listener
             srand((unsigned)time(0));
             int r = rand() % qotd1->len;
-            printf("%d",r);
+            //printf("%d",r);
             if (send(new_fd, qotd1->quotes[r], strlen(qotd1->quotes[r]), 0) == -1)
                 perror("send");
             close(new_fd);
