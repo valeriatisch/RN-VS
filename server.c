@@ -42,11 +42,11 @@ qotd* readfile(char* filename){
 
     qotd* qotd1 = malloc(sizeof(qotd));
     if(qotd1 == NULL){
-        perror("quote struct: faild alloc");
+        perror("quote struct: failed to alloc");
         exit(1);
     }
 
-    qotd1->quotes = malloc(sizeof(char**));
+    qotd1->quotes = malloc(sizeof(char*)*32);
     if(qotd1->quotes == NULL){
         perror("quotes:failed to alloc");
         exit(1);
@@ -70,7 +70,7 @@ qotd* readfile(char* filename){
         char* tmp;
         qotd1->len++;
 
-        int linelength = sscanf(line,"[^\n]");
+        int linelength = sscanf(line,"[^\nchar**]");
 
         //line without '\n'
         if(linelength == len){
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
     //read inputs arguments
     const char* port = argv[1];
-    char* filename = malloc(strlen(argv[2])+4);
+    char* filename = malloc(sizeof(char)*(strlen(argv[2])+5));
     if(filename == NULL){
         perror("filename: failed to alloc");
         exit(0);
