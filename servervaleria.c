@@ -68,14 +68,7 @@ char* get_random_line(FILE* fp) {
     }
 
     int number_of_lines = 0;
-    /*
-    char cCurrent;
-    while((cCurrent = fgetc(fp)) != EOF) {
-        if (cCurrent == '\n') {
-            number_of_lines++;
-        }
-    }
-    */
+
     while(!feof(fp)){
         fgets(line, MAXLINESIZE, fp);
         number_of_lines++;
@@ -84,10 +77,18 @@ char* get_random_line(FILE* fp) {
     srandom(time(NULL) + getpid());
     long int random_line = random() % number_of_lines;
 
+    size_t n = 0;
     fseek (fp, 0, SEEK_SET);
     for(int i = 0; i < number_of_lines; i++){
+        int line_length_1 = getline(&line, &n, fp);
+        int line_length_2 = sscanf(line, "[^\n]");
         fgets(line, MAXLINESIZE, fp);
         if(i == random_line){
+            if(line_length_1 == line_length_2){
+                get_random_line(fp);
+            }
+            char* line_return = NULL;
+            strncpy(line_return, line, line_length_2);
             return line;
         }
     }
