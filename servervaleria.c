@@ -82,14 +82,15 @@ char* get_random_line(FILE* fp) {
     for(int i = 0; i < number_of_lines; i++){
         int line_length_1 = getline(&line, &n, fp);
         int line_length_2 = sscanf(line, "[^\n]");
-        fgets(line, MAXLINESIZE, fp);
         if(i == random_line){
             if(line_length_1 == line_length_2){
                 get_random_line(fp);
             }
+            else{
             char* line_return = NULL;
             strncpy(line_return, line, line_length_2);
             return line;
+            }
         }
     }
 
