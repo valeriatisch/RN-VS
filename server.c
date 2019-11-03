@@ -119,9 +119,21 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    //read inputs arguments
     int port = argv[1];
-    char *filename = argv[2];
+    char* filename = malloc(strlen(argv[2])+4);
+    if(filename == NULL){
+        perror("filename: failed to alloc");
+        exit(0);
+    }
+    strcpy(filename,"..//");
+    filename = strcat(filename,argv[2]);
+    printf("%s",filename);
+    printf("%s",argv[2]);
     qotd * qotd1 = readfile(filename);
+
+    free(filename);
+
 
 
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
