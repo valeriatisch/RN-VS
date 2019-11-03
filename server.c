@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <time.h>
 
 #define PORT "2626"
 #define BACKLOG 1 // how many pending connections queue will hold
@@ -66,7 +67,6 @@ qotd* readfile(char* filename){
 
     int i = 0; //index
     while((len = getline(&line,&n,fp)) != -1){
-        //sscanf(line,"[^\n]");
         char* tmp;
         qotd1->len++;
 
@@ -202,8 +202,10 @@ int main(int argc, char *argv[]) {
 
         if (!fork()) { // this is the child process
             close(sockfd); // child doesn't need the listener
+            srand((unsigned)time(0));
             int r = rand() % qotd1->len;
-            if (send(new_fd, qotd1->quotes[r], 13, 0) == -1)
+            printf("%d",r);
+            if (send(new_fd, qotd1->quotes[r], strlen(qotd1->quotes[r]), 0) == -1)
                 perror("send");
             close(new_fd);
             exit(0);
