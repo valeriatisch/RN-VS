@@ -12,7 +12,8 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#define BACKLOG 10 // how many pending connections queue will hold
+#define PORT "2626"
+#define BACKLOG 1 // how many pending connections queue will hold
 typedef struct qotd{
     char** quotes;
     size_t len;
@@ -69,20 +70,13 @@ qotd* readfile(char* filename){
         char* tmp;
         qotd1->len++;
 
-        //delete '\n' from lines
-        if((tmp = strchr(line,'\n')) != NULL){
-            *tmp = "";
-            //allocate memory for one line
-            qotd1->quotes[i] = malloc(sizeof(char)*len);
-            if(qotd1->quotes[i] == NULL){
-                perror("quote: failed to alloc");
-                exit(1);
-            }
-            //save quote in array
-            qotd1->quotes[i++] = line;
-        }
+        int linelength = sscanf(line,"[^\n]");
 
-        //no '\n' found -> stop getting lines
+        //line without '\n'
+        if(linelength == len){
+            break;
+        }
+        //save new line in array
         else{
             //allocate memory for one line
             qotd1->quotes[i] = malloc(sizeof(char)*len);
@@ -90,9 +84,7 @@ qotd* readfile(char* filename){
                 perror("quote: failed to alloc");
                 exit(1);
             }
-            //save quote in array
-            qotd1->quotes[i++] = line;
-            break;
+            snprintf(qotd1->quotes[i++],len,"%s",line);
         }
     }
 
@@ -120,7 +112,7 @@ int main(int argc, char *argv[]) {
     }
 
     //read inputs arguments
-    int port = argv[1];
+    const char* port = argv[1];
     char* filename = malloc(strlen(argv[2])+4);
     if(filename == NULL){
         perror("filename: failed to alloc");
@@ -128,8 +120,7 @@ int main(int argc, char *argv[]) {
     }
     strcpy(filename,"..//");
     filename = strcat(filename,argv[2]);
-    printf("%s",filename);
-    printf("%s",argv[2]);
+
     qotd * qotd1 = readfile(filename);
 
     free(filename);
@@ -150,7 +141,7 @@ int main(int argc, char *argv[]) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
