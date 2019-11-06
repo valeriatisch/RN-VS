@@ -1,0 +1,2 @@
+/usr/bin/ar qc libBlock3.a  CMakeFiles/Block3.dir/library.c.o
+/usr/bin/ranlib libBlock3.a

@@ -1,0 +1,3 @@
+/home/florian/Dokumente/CLion/Block3/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/florian/Dokumente/CLion/Block3/cmake-build-debug/CMakeFiles/Block3.dir
+/home/florian/Dokumente/CLion/Block3/cmake-build-debug/CMakeFiles/edit_cache.dir
