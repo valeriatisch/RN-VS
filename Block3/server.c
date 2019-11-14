@@ -103,7 +103,9 @@ int main(int argc, char* argv[]) {
     char s[INET6_ADDRSTRLEN];
     uint8_t request[7];
     uint8_t confirmation[7];
-    element* pair;
+    element* pair = (element*) malloc(sizeof(element));
+    pair->key = (void*) malloc(sizeof(uint16_t));
+    pair->value = (void*) malloc(sizeof(uint32_t));
 
     if(argc != 2){
         perror("Port number is required.");
@@ -150,7 +152,7 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    if (listen(sockfd, 0) == -1) {
+    if (listen(sockfd, 7) == -1) {
         perror("An error occurred while listening.");
         exit(EXIT_FAILURE);
     }
@@ -163,8 +165,8 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
     */
-    memset(request, 0, sizeof request);
-    memset(confirmation, 0, sizeof confirmation); //confirmation
+    memset(&request, 0, sizeof request);
+    memset(&confirmation, 0, sizeof confirmation); //confirmation
 
     while(1) {
         sin_size = sizeof their_addr;
@@ -181,14 +183,13 @@ int main(int argc, char* argv[]) {
         printf("Server got connection from %s\n", s);
 
         /*
-         * TODO: select()
+         * TODO: select() http://manpages.ubuntu.com/manpages/cosmic/de/man2/select.2.html
          */
 
-        if (recv(new_fd, request, sizeof request, 0) == -1) { //hier holen wir uns den Header
+        if (recv(new_fd, &request, sizeof request, 0) == -1) { //hier holen wir uns den Header
             perror("An error occurred while receiving.");
             exit(EXIT_FAILURE);
         }
-
         int requested_del = request[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
         int requested_set = (request[0] >> 1) & 0b1; //
         int requested_get = (request[0] >> 2) & 0b1;
@@ -196,29 +197,15 @@ int main(int argc, char* argv[]) {
         //https://stackoverflow.com/questions/25787349/convert-char-to-short/25787662
         char2short(request, &pair->key_len); //keylength holen
 
-        //https://stackoverflow.com/questions/8136776/blocking-read-until-specified-number-bytes-arrived ..Plagiat is incoming
-        ssize_t recv_key,
-                received_bytes_k = 0;
-        if (pair->key_len > 0) {
-            ssize_t k = pair->key_len;
-            while (k > 0) {
-                recv_key = recv(new_fd, pair->key, k, 0);
-                if (recv_key <= 0) {
-                    if (recv_key == -1) {
-                        perror("An error occurred while receiving the key.");
-                        exit(EXIT_FAILURE);
-                    }
-                    break;
-                } else {
-                    k -= recv_key;
-                    pair->key += recv_key;
-                    received_bytes_k += k;
-                }
+        if(pair->key_len > 0){
+            void* ptr_key = &pair->key;
+            ssize_t recv_key = recv(new_fd, ptr_key, pair->key_len, 0);
+            if (recv_key == -1) {
+                perror("An error occurred while receiving the key.");
+                exit(EXIT_FAILURE);
             }
-        }
-
-        if (received_bytes_k != pair->key_len) { //actually not sure if it's necessary lol kein Bock mehr
-            perror("Received less or more bytes than key_len.");
+        } else if (pair->key_len == 0){
+            perror("Key length is 0.");
             exit(EXIT_FAILURE);
         }
 
@@ -227,54 +214,52 @@ int main(int argc, char* argv[]) {
                         | ((request[5] & 0xFF) << 8)
                         | (request[6] & 0xFF);
 
-        ssize_t recv_value,
-                received_bytes_v = 0;
-        if (pair->value_len > 0) {
-            ssize_t v = pair->value_len;
-            while (v > 0) {
-                recv_value = recv(new_fd, pair->value, v, 0);
-                if (recv_value <= 0) {
-                    if (recv_key == -1) {
-                        perror("An error occurred while receiving the value.");
-                        exit(EXIT_FAILURE);
-                    }
-                    break;
-                } else {
-                    v -= recv_key;
-                    pair->key += recv_key;
-                    received_bytes_v += v;
-                }
+        if(pair->value_len > 0) {
+            void* ptr_value = &pair->value;
+            ssize_t recv_value = recv(new_fd, ptr_value, pair->value_len, 0);
+            if (recv_value == -1) {
+                perror("An error occurred while receiving the value.");
+                exit(EXIT_FAILURE);
             }
         }
 
-        /*
-         * TODO: confirmation[]: keylength und valuelength, get(): send key und value
-         */
-        if(requested_del > 0){
-            confirmation[0] |= 0b1001; //del und ack bit setzen
-            delete(pair);
-        }
-        else if(requested_set > 0){
-            confirmation[0] |= 0b1010; //set und ack bit setzen
-            set(pair->key, pair->value, pair->key_len, pair->value_len);
-        }
-        else if(requested_get > 0){
+        if(requested_del > 0 || requested_set > 0){
+            if(requested_del > 0){
+                confirmation[0] |= 0b1001; //del und ack bit setzen
+                delete(pair);
+            } else if(requested_set > 0){
+                confirmation[0] |= 0b1010; //set und ack bit setzen
+                set(pair->key, pair->value, pair->key_len, pair->value_len);
+            }
+            ssize_t sent = send(new_fd, confirmation, sizeof confirmation, 0);
+            if(sent != sizeof confirmation){
+                perror("An error occurred while sending.");
+                exit(EXIT_FAILURE);
+            }
+        } else if(requested_get > 0){
             confirmation[0] |= 0b1100; //get und ack bit setzen
             element* elem = get(pair->key, pair->key_len);
+            ssize_t sent_conf = send(new_fd, confirmation, sizeof confirmation, 0);
+            if(sent_conf != sizeof confirmation){
+                perror("An error occurred while sending.");
+                exit(EXIT_FAILURE);
+            }
+            ssize_t sent_key = send(new_fd, elem->key, elem->key_len, 0);
+            if(sent_key != elem->key_len){
+                perror("An error occurred while sending.");
+                exit(EXIT_FAILURE);
+            }
+            ssize_t sent_value = send(new_fd, elem->value, elem->value_len, 0);
+            if(sent_value != elem->value_len){
+                perror("An error occurred while sending.");
+                exit(EXIT_FAILURE);
+            }
 
         }
-        /*
-         * TODO: send() richtig
-         */
-        ssize_t sent = send(new_fd, confirmation, sizeof confirmation, 0);
-        if(sent != sizeof confirmation){ //7 bei delete und set, mehr bei get
-            perror("An error occurred while sending.");
-            exit(EXIT_FAILURE);
-        }
 
-        close(sockfd);
         close(new_fd);
     }
+    close(sockfd);
 }
 
 /*
