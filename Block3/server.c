@@ -1,84 +1,71 @@
-//
-// Created by valeria on 01.11.19.
-//
-
-/*
- * server.c - TCP - vorgegebenes Protokoll
- *
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <stdint.h>
-
+#include <sudo_plugin.h>
 #include "uthash.h"
 
+#define HEADERLENGTH 7
 
-/* Aus dem Tut:
- * recv buffer mit 7 bytes
- * wissen dann keylen und valuelen
- * recv key und value mit entsprechenden laengen
- * recv gibt nicht mehr oder weniger als keylen und valuelen
- *
- * TODO: hton anschauen
- */
-
-typedef struct {
-    void* key;
-    uint16_t key_len;
-    void* value;
-    uint32_t value_len;
+struct HASH_elem{
+    char* key;
+    uint16_t key_length;
+    char* value;
+    uint32_t value_length;
     UT_hash_handle hh;
-} element;
+};
 
-element* table = NULL;
+struct HASH_elem *table = NULL;
 
-void set(void* key, void* value,size_t key_len,size_t value_len){
-    element* newelem;
-    newelem = malloc(sizeof(element));
-    memcpy(newelem->key, key, key_len);
-    memcpy(newelem->value, value, value_len);
-    newelem->key_len = key_len; //das ist eigentlich auch vollkommen in Ordnung
-    newelem->value_len = value_len;
-    element* rep_item;
-    HASH_REPLACE(hh,table,key,key_len,newelem,rep_item);
-    if(rep_item != NULL){
-        free(rep_item);
+struct HASH_elem *get(char* key, uint16_t keylen){
+    struct HASH_elem *s = NULL;
+    HASH_FIND_STR(table, key, s);
+    return s;
+}
+
+void delete(char* key, uint16_t keylen){
+    struct HASH_elem *s = NULL;
+    HASH_FIND_STR( table, key, s);
+    if(s != NULL){
+        HASH_DEL(table, s);
+        free(s);
     }
+
 }
 
-element* get(void* key,size_t key_len){
-    element* search_elem;
+void set(char* new_key, uint16_t key_length, char* value, uint32_t value_length){
+    //delete old elem
+    struct HASH_elem *q = NULL;
+    HASH_FIND_STR( table, new_key, q);
+    if(q != NULL) {
+        delete(new_key,key_length);
+    }
+    //alloc verzweifelten struct
+    struct HASH_elem *s = malloc(sizeof(struct HASH_elem));
+    if(s == NULL){
+        perror("alloc:new element");
+        exit(EXIT_FAILURE);
+    }
 
-    HASH_FIND(hh,table,key,key_len,search_elem);
-    return search_elem;
+    memcpy(&s->key, &new_key, key_length);
+    memcpy(&s->value, &value, value_length);
+    s->key_length = key_length;
+    s->value_length = value_length;
+
+    struct HASH_elem *rep_elem;
+    HASH_ADD_KEYPTR(hh,table,s->key,key_length,s);
+
 }
 
-void delete(element* del_elem){
-    HASH_DEL(table,del_elem);
-    free(del_elem);
-}
-
-/*
-void sigchld_handler(int s) {
-    (void)s;
-    int saved_errno = errno;
-    while(waitpid(-1, NULL, WNOHANG) > 0);
-    errno = saved_errno;
-}
-*/
-
-void *get_in_addr(struct sockaddr *sa) {
+void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
         return &(((struct sockaddr_in*)sa)->sin_addr);
     }
@@ -86,182 +73,163 @@ void *get_in_addr(struct sockaddr *sa) {
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void char2short(unsigned char* pchar, unsigned short* pshort) {
-    *pshort = (pchar[0] << 8) | pchar[1];
-}
-
-int main(int argc, char* argv[]) {
-
-    int new_fd,
-        sockfd = 0;
-    struct addrinfo *servinfo,
-            *p;
-    struct sockaddr_storage their_addr;
-    socklen_t sin_size;
-    struct sigaction sa;
-    int yes = 1;
-    char s[INET6_ADDRSTRLEN];
-    uint8_t request[7];
-    uint8_t confirmation[7];
-    element* pair = (element*) malloc(sizeof(element));
-    pair->key = (void*) malloc(sizeof(uint16_t));
-    pair->value = (void*) malloc(sizeof(uint32_t));
-
-    if(argc != 2){
-        perror("Port number is required.");
+char* recv_n_char(int new_fd, int size){
+    //TODO: malloc free'n
+    //alloc buffer
+    char* recv_buf = calloc(1,sizeof(char)*size+1);
+    if(recv_buf == NULL){
+        perror("alloc:recv_buf");
         exit(EXIT_FAILURE);
     }
+    char* buff_ptr = recv_buf;
+    //receive 'size' bytes
+    while(size > 0){
+        ssize_t curr = recv(new_fd, buff_ptr, size, 0);
+        if(curr <= 0){
+            if(curr == -1){
+                perror("An error occurred while receiving.");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        size -= curr;
+        buff_ptr += curr;
+    }
+    return recv_buf;
+}
+
+void send_n_char(int new_fd, char* arr, int size){
+
+    char* ptr = arr;
+    while(size > 0){
+
+        ssize_t curr = send(new_fd, ptr, size, 0);
+        if(curr <= 0){
+            if(curr == -1){
+                perror("An error occurred while sending.");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        size -= curr;
+        ptr += curr;
+
+    }
+}
+
+int main(int argc, char* argv[]){
+    int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
+    struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_storage their_addr; // connector's address information
+    socklen_t sin_size;
+    struct sigaction sa;
+    int yes=1;
+    char s[INET6_ADDRSTRLEN];
+    int rv;
 
     char* portNr = argv[1];
 
-    struct addrinfo hints = {
-            .ai_family = AF_UNSPEC,
-            .ai_socktype = SOCK_STREAM,
-            .ai_flags = AI_PASSIVE
-    };
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
 
-    int rv = getaddrinfo("localhost", portNr, &hints, &servinfo);
-    if(rv != 0){
+    if ((rv = getaddrinfo("localhost", portNr, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
+    // loop through all the results and bind to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
-            perror("Couldn't create a socket.");
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
+            perror("server: socket");
             continue;
         }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                       sizeof(int)) == -1) {
-            perror("Setsockopt() function failed.");
-            exit(EXIT_FAILURE);
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
         }
+
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
-            perror("Server couldn't bind.");
+            perror("server: bind");
             continue;
         }
+
         break;
     }
 
-    freeaddrinfo(servinfo);
-
-    if (p == NULL)  {
-        fprintf(stderr, "Server failed to bind.\n");
-        exit(EXIT_FAILURE);
+    freeaddrinfo(servinfo); // all done with this structure
+    if (p == NULL) {
+        fprintf(stderr, "server: failed to bind\n");
+        exit(1);
     }
 
-    if (listen(sockfd, 7) == -1) {
-        perror("An error occurred while listening.");
-        exit(EXIT_FAILURE);
+    if (listen(sockfd, 5) == -1) {
+        perror("listen");
+        exit(1);
     }
-    /*
-    sa.sa_handler = sigchld_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-    }
-    */
-    memset(&request, 0, sizeof request);
-    memset(&confirmation, 0, sizeof confirmation); //confirmation
 
-    while(1) {
+    while(1) { // main accept() loop
         sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         if (new_fd == -1) {
-            perror("An error occurred while accepting.");
+            perror("accept");
             continue;
         }
 
-        inet_ntop(their_addr.ss_family,
-                  get_in_addr((struct sockaddr *) &their_addr),
-                  s,
-                  sizeof s);
-        printf("Server got connection from %s\n", s);
+        //receive header
+        char* header = recv_n_char(new_fd, HEADERLENGTH);
 
-        /*
-         * TODO: select() http://manpages.ubuntu.com/manpages/cosmic/de/man2/select.2.html
-         */
+        int requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
+        int requested_set = (header[0] >> 1) & 0b1; //
+        int requested_get = (header[0] >> 2) & 0b1;
 
-        if (recv(new_fd, &request, sizeof request, 0) == -1) { //hier holen wir uns den Header
-            perror("An error occurred while receiving.");
-            exit(EXIT_FAILURE);
+        uint16_t keylen = (header[1] << 8) | header[2];
+        uint32_t valuelen = (header[3] << 24)
+                            | ((header[4] & 0xFF) << 16)
+                            | ((header[5] & 0xFF) << 8)
+                            | (header[6] & 0xFF);
+        //receive key
+        char* key = recv_n_char(new_fd, keylen);
+        //receive value
+        char* value = NULL;
+        if(valuelen > 0) value = recv_n_char(new_fd, valuelen);
+
+        if(requested_del > 0){
+            delete(key, keylen);
+            header[0] |= 0b1000;
+            //send header
+            send_n_char(new_fd, header, HEADERLENGTH);
         }
-        int requested_del = request[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
-        int requested_set = (request[0] >> 1) & 0b1; //
-        int requested_get = (request[0] >> 2) & 0b1;
-
-        //https://stackoverflow.com/questions/25787349/convert-char-to-short/25787662
-        char2short(request, &pair->key_len); //keylength holen
-
-        if(pair->key_len > 0){
-            void* ptr_key = &pair->key;
-            ssize_t recv_key = recv(new_fd, ptr_key, pair->key_len, 0);
-            if (recv_key == -1) {
-                perror("An error occurred while receiving the key.");
-                exit(EXIT_FAILURE);
-            }
-        } else if (pair->key_len == 0){
-            perror("Key length is 0.");
-            exit(EXIT_FAILURE);
+        else if(requested_set > 0){
+            set(key, keylen, value, valuelen);
+            header[0] |= 0b1000;
+            //send header
+            send_n_char(new_fd, header, HEADERLENGTH);
         }
-
-        pair->value_len = (request[3] << 24)
-                        | ((request[4] & 0xFF) << 16)
-                        | ((request[5] & 0xFF) << 8)
-                        | (request[6] & 0xFF);
-
-        if(pair->value_len > 0) {
-            void* ptr_value = &pair->value;
-            ssize_t recv_value = recv(new_fd, ptr_value, pair->value_len, 0);
-            if (recv_value == -1) {
-                perror("An error occurred while receiving the value.");
-                exit(EXIT_FAILURE);
+        else if(requested_get > 0){
+            struct HASH_elem *result = get(key, keylen);
+            //no element found
+            if(result == NULL){
+                //send header without ack
+                send_n_char(new_fd, header, HEADERLENGTH);
+            }
+                //element found
+            else{
+                uint32_t len = result->value_length;
+                header[3] = (len >> 24) & 0xFF;
+                header[4] = (len >> 16) & 0xFF;
+                header[5] = (len >> 8) & 0xFF;
+                header[6] = len & 0xFF;
+                header[0] |= 0b1000;
+                send_n_char(new_fd, header, HEADERLENGTH);
+                send_n_char(new_fd, result->key, keylen);
+                send_n_char(new_fd, result->value, result->value_length);
             }
         }
-
-        if(requested_del > 0 || requested_set > 0){
-            if(requested_del > 0){
-                confirmation[0] |= 0b1001; //del und ack bit setzen
-                delete(pair);
-            } else if(requested_set > 0){
-                confirmation[0] |= 0b1010; //set und ack bit setzen
-                set(pair->key, pair->value, pair->key_len, pair->value_len);
-            }
-            ssize_t sent = send(new_fd, confirmation, sizeof confirmation, 0);
-            if(sent != sizeof confirmation){
-                perror("An error occurred while sending.");
-                exit(EXIT_FAILURE);
-            }
-        } else if(requested_get > 0){
-            confirmation[0] |= 0b1100; //get und ack bit setzen
-            element* elem = get(pair->key, pair->key_len);
-            ssize_t sent_conf = send(new_fd, confirmation, sizeof confirmation, 0);
-            if(sent_conf != sizeof confirmation){
-                perror("An error occurred while sending.");
-                exit(EXIT_FAILURE);
-            }
-            ssize_t sent_key = send(new_fd, elem->key, elem->key_len, 0);
-            if(sent_key != elem->key_len){
-                perror("An error occurred while sending.");
-                exit(EXIT_FAILURE);
-            }
-            ssize_t sent_value = send(new_fd, elem->value, elem->value_len, 0);
-            if(sent_value != elem->value_len){
-                perror("An error occurred while sending.");
-                exit(EXIT_FAILURE);
-            }
-
-        }
-
-        close(new_fd);
+        close(new_fd); // parent doesn't need this
     }
-    close(sockfd);
+    return 0;
 }
-
-/*
- * TODO: WENN DER CODE ENDLICH MAL LAEUFT: die haessliche ewig lange main etwas schoener und sauberer machen, Funktionen auslagern, header Dateien und so
- */
