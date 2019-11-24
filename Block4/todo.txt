@@ -1,0 +1,37 @@
+- welche art von protokoll: control
+- struct protokoll fuer die lookups: check
+- Was ist "reply" fuer ein Protokoll?
+- if(key < 2 bytes): key mit null bytes auffuellenn in big-endian
+    einfach vorher den key-buffer mit '\0' memseten? reicht das?
+- eine Liste/Hashtable fuer <key, value> Paare fuer die Zuordnung des Clients (also Zuordnung des Keys zum Socket file)
+- Vorgänger-Nachfolger: global speichern?
+- m????
+
+Max. Laenge fuer key: 1111111111111111 bzw. 65535 
+Datenbereich fuer 1. peer: Wenn key zwieschen 0 - 16383 liegt, ist der 1. Server verantwortlich
+Datenbereich fuer 2. peer: 16384 - 32768
+Datenbereich fuer 3. peer: 32769 - 49151
+Datenbereich fuer 4. peer: 49152 - 65535
+
+
+So ein bisschen Ablauf:
+
+Anfrage empfangen: recv_n_char -> um welches Protokoll handelt es sich?
+altes Protokoll, 1. Bit ist nicht gesetzt:
+    Wenn Anfrage vom Client: Ist der angefragte Server(1) verantwortlich fuer den Key?
+        Wenn ja: einfach alles wie beim letzten Mal
+        Wenn nicht: lookup zum naechsten Peer
+            Wenn wir den Vorgaenger des verantwortlichen Peers gefunden haben:
+                Der Vorgaenger sendet ein reply mit der ID des verantwortlichen Peers an den kommunizierenden Server(1) (neues Protokoll)
+                    Der Server(1) sendet die Anfrage an den verantowortlichen Peer (altes Protokoll)
+                        Der veranttwortliche Peer antwortet dem komm. Server(1) mit dem alten Protokoll
+                            Der Server(1) antwortet dem Client
+    Wenn Antwort vom verantwortlichen Peer an den komm. Server(1): //Woher wissen wir, dass es keine Anfrage vom Client ist?
+        Server(1) sendet die Antwort einfach weiter an den Client
+neues Protkoll, also Control Bit ist gesetzt:
+        Kann nur Nachricht von einem Peer sein:
+            Peer schaut, ob sein Nachfolger der verantwortliche ist:
+                Wenn ja: sendet dieser eine Nachricht mit der ID des verantwort. Peers an den Server
+                Wenn nein: sendet die Nachricht weiter an den naechsten Peer
+
+                     
