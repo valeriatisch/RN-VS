@@ -1,11 +1,11 @@
 - welche art von protokoll: control
 - struct protokoll fuer die lookups: check
-- Was ist "reply" fuer ein Protokoll?
 - if(key < 2 bytes): key mit null bytes auffuellenn in big-endian
     einfach vorher den key-buffer mit '\0' memseten? reicht das?
-- eine Liste/Hashtable fuer <key, value> Paare fuer die Zuordnung des Clients (also Zuordnung des Keys zum Socket file)
+- eine Liste/Hashtable fuer <key, value> Paare fuer die ZUORDNUNG des Clients (also Zuordnung des Keys zum Socket file)
 - Vorgänger-Nachfolger: global speichern?
 - m????
+
 
 Max. Laenge fuer key: 1111111111111111 bzw. 65535 
 Datenbereich fuer 1. peer: Wenn key zwieschen 0 - 16383 liegt, ist der 1. Server verantwortlich
@@ -14,24 +14,35 @@ Datenbereich fuer 3. peer: 32769 - 49151
 Datenbereich fuer 4. peer: 49152 - 65535
 
 
-So ein bisschen Ablauf:
+FUNKTIONEN:
+is_my_succ_responsible() -> Datenbereiche checken
 
-Anfrage empfangen: recv_n_char -> um welches Protokoll handelt es sich?
-altes Protokoll, 1. Bit ist nicht gesetzt:
-    Wenn Anfrage vom Client: Ist der angefragte Server(1) verantwortlich fuer den Key?
-        Wenn ja: einfach alles wie beim letzten Mal
-        Wenn nicht: lookup zum naechsten Peer
-            Wenn wir den Vorgaenger des verantwortlichen Peers gefunden haben:
-                Der Vorgaenger sendet ein reply mit der ID des verantwortlichen Peers an den kommunizierenden Server(1) (neues Protokoll)
-                    Der Server(1) sendet die Anfrage an den verantowortlichen Peer (altes Protokoll)
-                        Der veranttwortliche Peer antwortet dem komm. Server(1) mit dem alten Protokoll
-                            Der Server(1) antwortet dem Client
-    Wenn Antwort vom verantwortlichen Peer an den komm. Server(1): //Woher wissen wir, dass es keine Anfrage vom Client ist?
-        Server(1) sendet die Antwort einfach weiter an den Client
-neues Protkoll, also Control Bit ist gesetzt:
-        Kann nur Nachricht von einem Peer sein:
-            Peer schaut, ob sein Nachfolger der verantwortliche ist:
-                Wenn ja: sendet dieser eine Nachricht mit der ID des verantwort. Peers an den Server
-                Wenn nein: sendet die Nachricht weiter an den naechsten Peer
 
+So ein bisschen ABLAUF:
+
+recv_n_char() -> Anfrage empfangen (erst nur das 1. Byte?), um zu checken um welches Protokoll es sich handelt
+
+- altes Protokoll, 1. Bit ist nicht gesetzt:
+    recv_n_char() -> key_len und den Key empfangen, wir muessen rausfinden, wer zustaendig ist
+        + Wenn Anfrage vom Client (Ack-Bit ist nicht gesetzt): Ist der angefragte Server(1) zustaendig fuer den Key? 
+            Wenn ja: einfach alles wie beim letzten Mal
+            Wenn nicht: lookup zum naechsten Peer (lookup bit setzen)
+                Wenn wir beim Vorgaenger des zustaendigen Peers angekommen sind -> is_my_succ_responsible():
+                    Der Vorgaenger sendet ein reply mit der ID des zustaendigen Peers an den kommunizierenden Server(1) (neues Protokoll, reply bit setzen)
+                        recv_n_char -> Server(1) empfaengt den Rest (value_len, value) bei Bedarf u. sendet die Anfrage an den zustaendigen Peer (altes Protokoll)
+                            Der zustaendige Peer antwortet dem komm. Server(1) mit dem alten Protokoll
+                                Der Server(1) antwortet dem Client
+        + Wenn Anfrage vom Server(1):
+            Server(1) wird vom zustaendigen Peer behandelt wie ein normaler Client 
+        + Wenn Antwort vom zustaendigen Peer an den komm. Server(1): //Erkennen wir vermutlich an dem gesetzten Ack-Bit?
+            Server(1) leitet die Antwort einfach weiter an den Client
+
+- neues Protokoll, also Control Bit ist gesetzt:
+    + Kann nur Nachricht von einem Peer sein:
+        lookup bit ist gesetzt:
+            Peer schaut, ob sein Nachfolger der zustaendige ist -> is_my_succ_responsible():
+                Wenn ja: sendet dieser eine Nachricht mit der ID des zustaendigen Peers an den Server(1) (reply bit setzen)
+                Wenn nein: sendet den lookup weiter an den naechsten Peer
+        reply bit ist gesetzt:
+            Server(1) bekommt die ID des zustaendigen Peers
                      
