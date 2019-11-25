@@ -4,7 +4,7 @@
     einfach vorher den key-buffer mit '\0' memseten? reicht das?
 - eine Liste/Hashtable fuer <key, value> Paare fuer die ZUORDNUNG des Clients (also Zuordnung des Keys zum Socket file)
 - Vorgänger-Nachfolger: global speichern?
-- m: Anzahl der Bits des Werteberieches
+- m: Anzahl der Bits des Werteberieches.
 
 
 Max. Laenge fuer key: 1111111111111111 bzw. 65535 
