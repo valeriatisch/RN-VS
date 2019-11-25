@@ -1,10 +1,12 @@
+- aufruf speichern (get/set/del): global in call_type
 - welche art von protokoll: control
 - struct protokoll fuer die lookups: check
 - if(key < 2 bytes): key mit null bytes auffuellenn in big-endian
     einfach vorher den key-buffer mit '\0' memseten? reicht das?
 - eine Liste/Hashtable fuer <key, value> Paare fuer die ZUORDNUNG des Clients (also Zuordnung des Keys zum Socket file)
 - Vorgänger-Nachfolger: global speichern?
-- m: Anzahl der Bits des Werteberieches...
+- m: Anzahl der Bits des Wertebereiches...
+- abfangen, wenn am ersten wieder ein lookup ankommt, dann ist man zuweit gegangen
 
 
 Max. Laenge fuer key: 1111111111111111 bzw. 65535 
@@ -15,7 +17,12 @@ Datenbereich fuer 4. peer: 49152 - 65535
 
 
 FUNKTIONEN:
+make_old_from_new() -> erzeuge altes protokoll und sende an entsprechenden peer, ausgehend von erhaltenem reply(mit ID)
+check_datarange() -> 1. key hashen
 is_my_succ_responsible() -> Datenbereiche checken
+send_message2client()
+    - ACK-bit immer setzten (get)
+send_toPeer(ID,IP,Port,lookup_message);    
 
 
 So ein bisschen ABLAUF:
@@ -45,4 +52,4 @@ recv_n_char() -> Anfrage empfangen (erst nur das 1. Byte?), um zu checken um wel
                 Wenn nein: sendet den lookup weiter an den naechsten Peer
         reply bit ist gesetzt:
             Server(1) bekommt die ID des zustaendigen Peers
-   
+

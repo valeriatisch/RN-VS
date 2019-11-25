@@ -53,27 +53,26 @@ int main(int argc, char* argv[]){
     int nbytes;
 
     char remoteIP[INET6_ADDRSTRLEN];
-
     int yes=1;        // for setsockopt() SO_REUSEADDR, below
     int i, j, rv;
 
     struct addrinfo hints, *ai, *p;
 
-    struct ring_message self;
-    struct ring_message predecessor;
-    struct ring_message successor;
+    struct ring_message* self;
+    struct ring_message* predecessor;
+    struct ring_message* successor;
 
-    self.node_ID = atoi(argv[1]);
-    self.node_IP = atoi(argv[2]);
-    self.node_PORT = atoi(argv[3]);
+    self->node_ID = atoi(argv[1]);
+    self->node_IP = atoi(argv[2]);
+    self->node_PORT = atoi(argv[3]);
 
     /* I don't know yet if we're gonna need all this crap
-    predecessor.node_ID = atoi(argv[4]);
-    predecessor.node_IP = atoi(argv[5])
-    predecessor.node_PORT = atoi(argv[6]);
-    successor.node_ID = atoi(argv[7]);
-    successor.node_PORT = atoi(argv[8]);
-    successor.node_PORT = atoi(argv[9])
+    predecessor->node_ID = atoi(argv[4]);
+    predecessor->node_IP = atoi(argv[5])
+    predecessor->node_PORT = atoi(argv[6]);
+    successor->node_ID = atoi(argv[7]);
+    successor->node_PORT = atoi(argv[8]);
+    successor->node_PORT = atoi(argv[9])
     */
 
     FD_ZERO(&master);    // clear the master and temp sets
@@ -120,7 +119,12 @@ int main(int argc, char* argv[]){
         exit(3);
     }
 
-    // add the listener to the master set
+    // add the listen
+    char* ptr
+    char* ptr
+    char* ptr
+    char* ptr
+    char* ptrer to the master set
     FD_SET(listener, &master);
 
     // keep track of the biggest file descriptor
@@ -164,9 +168,8 @@ int main(int argc, char* argv[]){
                      */
                     char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
                     int control = (commands[0] >> 7) & 0b1; //check the first bit
-
                     if(control <= 0){ //so it's the old protocol
-                        int ack = (commands[0] >> 4) & 0b1;
+                        int ack = (commands[0] >> 3) & 0b1;
                         if(ack <= 0){ //if the ack bit isn't set it's a request from a client
                             //receive header
                             char* header = recv_n_char(i, HEADERLENGTH);
@@ -175,17 +178,57 @@ int main(int argc, char* argv[]){
                             //receive key
                             char* key = recv_n_char(i, keylen);
 
-                            if(key < 16U){
+                            if((keylen * 8) < 16U){
                                 //fill with nullbytes
+                                uint8_t* hash_key = malloc(sizeof(uint8_t) * 2);
+                                memset(hash_key, '\0', sizeof hash_key);
+                                memcpy(hash_key, key, keylen);
+                                //uint16_t hashed_key = hash(hash_key); //hash key into binary
                             }
-                            //and so on
+                            else if((keylen * 8) > 16U){
+                                //key abschneiden
+                                uint8_t* hash_key = malloc(sizeof(uint8_t) * 2);
+                                memcpy(hash_key,key,sizeof(uint16_t));
+                            }
+                            //I am responsible, so recv the whole message from client and reply
+                            if(check_datarange(hash_key, self->node_ID)){//TODO
+                                //recv header
+                                char* rest_header = recv_n_char(i, HEADERLENGTH - 1);
+                                strcat(header,rest_header);
+                                send_message2client(header, i, HEADERLENGTH);//TODO
+                            }
+                            //lookup
+                            else if(check_datarange(hash_key, self->node_ID) == 0){
+                                char* reply_message = create_lookup(hash_key,self);//TODO
+                                //TODO: an Nachfolger senden
+                            }
                         }
                         else if(ack > 0){ //it's a reply from another peer then
                             //we should act like a client in this case
-                            //and then send all the stuff we received from our fellow to the actual client
+                            char* rest_header = recv_n_char(i, HEADERLENGTH - 1);
+                            strcat(header,rest_header);
+                            send_message2client(header,i);
+                    }
+                    //it's the new protocol!
+                    else if(control > 0){
+                        if((commands[0] >> 1) & 0b1){ // make sure it's a reply
+                            uint16_t* hash_id = recv_n_char(i,2);
+                            char* lookup_message = make_old_from_new(hash_id,call_type);
+
+                            uint16_t* node_id = recv_n_char(i,2);
+                            uint32_t* node_ip = recv_n_char(i,4);
+                            uint16_t* node_port = recv_n_char(i,2);
+
+                            send_toPeer(node_id,node_ip,node_port,lookup_message);//TODO
+ 
+                        }
+                        else if((commands[0]) & 0b1){ // make sure it's a lookup
+                            // is_my_succesor_responsible() --> reply, else forward lookup
+
                         }
 
                     }
+                    
 
                     /*
                     if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {

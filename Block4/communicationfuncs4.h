@@ -8,6 +8,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include "hashtablefuncs4.h"
+
+char* recv_n_char(int new_fd, int size);
+void send_n_char(int new_fd, char* arr, int size);
+void send_message2client(char* header, int  new_fd, int headerlength);
+int check_datarange(uint16_t hash_key, );
+
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
@@ -50,6 +57,65 @@ void send_n_char(int new_fd, char* arr, int size){
         size -= curr;
         ptr += curr;
 
+    }
+}
+
+void send_message2client(char* header, int  new_fd, int headerlength){
+    int requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
+    int requested_set = (header[0] >> 1) & 0b1; //same shit with set
+    int requested_get = (header[0] >> 2) & 0b1; //and get
+
+    uint16_t keylen = (header[1] << 8) | header[2];
+    uint32_t valuelen = (header[3] << 24)
+                        | ((header[4] & 0xFF) << 16)
+                        | ((header[5] & 0xFF) << 8)
+                        | (header[6] & 0xFF);
+    //receive key
+    char* key = recv_n_char(new_fd, keylen);
+    //receive value
+    char* value = NULL;
+    if(valuelen > 0) value = recv_n_char(new_fd, valuelen);
+
+    if(header[0] >> 4) & 0b1 == 1){ // ack bit set --> answer to be sent to client
+        send_n_char(new_fd, header, headerlength);
+        if(requested_get > 0) { // if get request, return key and value aswell
+        send_n_char(new_fd, key, keylen);
+        send_n_char(new_fd, value, valuelen);
+        }
+    }
+    else{
+        if(requested_del > 0){
+            delete(key, keylen);
+            header[0] |= 0b1000;
+            //send header
+            send_n_char(new_fd, header, headerlength);
+        }
+        else if(requested_set > 0){
+            set(key, keylen, value, valuelen);
+            header[0] |= 0b1000;
+            //send header
+            send_n_char(new_fd, header, headerlength);
+        }
+        else if(requested_get > 0){
+            struct HASH_elem *result = get(key, keylen);
+            header[0] |= 0b1000;
+            //no element found
+            if(result == NULL){
+                //send header without ack
+                send_n_char(new_fd, header, headerlength);
+            }
+                //element found
+            else{
+                uint32_t len = result->value_length;
+                header[3] = (len >> 24) & 0xFF;
+                header[4] = (len >> 16) & 0xFF;
+                header[5] = (len >> 8) & 0xFF;
+                header[6] = len & 0xFF;
+                send_n_char(new_fd, header, headerlength);
+                send_n_char(new_fd, result->key, keylen);
+                send_n_char(new_fd, result->value, result->value_length);
+            }
+        }
     }
 }
 
