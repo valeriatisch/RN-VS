@@ -83,7 +83,7 @@ int main(int argc, char* argv[]){
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-    if ((rv = getaddrinfo(self.node_IP, self.node_PORT, &hints, &ai)) != 0) {
+    if ((rv = getaddrinfo(self->node_IP, self->node_PORT, &hints, &ai)) != 0) {
         fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
         exit(1);
     }
@@ -120,11 +120,13 @@ int main(int argc, char* argv[]){
     }
 
     // add the listen
+    /*
     char* ptr
     char* ptr
     char* ptr
     char* ptr
     char* ptrer to the master set
+    */
     FD_SET(listener, &master);
 
     // keep track of the biggest file descriptor
@@ -133,19 +135,19 @@ int main(int argc, char* argv[]){
     // main loop
     for(;;) {
         read_fds = master; // copy it
-        if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+        if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
             perror("select");
             exit(4);
         }
 
         // run through the existing connections looking for data to read
-        for(i = 0; i <= fdmax; i++) {
+        for (i = 0; i <= fdmax; i++) {
             if (FD_ISSET(i, &read_fds)) { // we got one!!
                 if (i == listener) {
                     // handle new connections
                     addrlen = sizeof remoteaddr;
                     newfd = accept(listener,
-                                   (struct sockaddr *)&remoteaddr,
+                                   (struct sockaddr *) &remoteaddr,
                                    &addrlen);
 
                     if (newfd == -1) {
@@ -158,7 +160,7 @@ int main(int argc, char* argv[]){
                         printf("selectserver: new connection from %s on "
                                "socket %d\n",
                                inet_ntop(remoteaddr.ss_family,
-                                         get_in_addr((struct sockaddr*)&remoteaddr),
+                                         get_in_addr((struct sockaddr *) &remoteaddr),
                                          remoteIP, INET6_ADDRSTRLEN),
                                newfd);
                     }
@@ -166,100 +168,107 @@ int main(int argc, char* argv[]){
                     /*
                      * TODO: this is where the fun begins *imagine an Anakin-Skywalker-GIF!*
                      */
-                    char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
+                    char *commands = recv_n_char(i,
+                                                 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
                     int control = (commands[0] >> 7) & 0b1; //check the first bit
-                    if(control <= 0){ //so it's the old protocol
+                    if (control <= 0) { //so it's the old protocol
                         int ack = (commands[0] >> 3) & 0b1;
-                        if(ack <= 0){ //if the ack bit isn't set it's a request from a client
+                        if (ack <= 0) { //if the ack bit isn't set it's a request from a client
                             //receive header
-                            char* header = recv_n_char(i, HEADERLENGTH);
+                            char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
+                            char *header = strcat(commands, rest_header);
 
                             uint16_t keylen = (header[1] << 8) | header[2];
                             //receive key
-                            char* key = recv_n_char(i, keylen);
+                            char *key = recv_n_char(i, keylen);
 
-                            if((keylen * 8) < 16U){
+                            if ((keylen * 8) < 16U) {
                                 //fill with nullbytes
-                                uint8_t* hash_key = malloc(sizeof(uint8_t) * 2);
+                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
                                 memset(hash_key, '\0', sizeof hash_key);
                                 memcpy(hash_key, key, keylen);
-                                //uint16_t hashed_key = hash(hash_key); //hash key into binary
-                            }
-                            else if((keylen * 8) > 16U){
+                            } else if ((keylen * 8) > 16U) {
                                 //key abschneiden
-                                uint8_t* hash_key = malloc(sizeof(uint8_t) * 2);
-                                memcpy(hash_key,key,sizeof(uint16_t));
+                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
+                                memcpy(hash_key, key, sizeof(uint16_t));
+                            } else if ((keylen * 8) == 16U) {
+                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
+                                memcpy(hash_key, key, sizeof(uint16_t));
                             }
+                            uint16_t hashed_key = hash(hash_key); //hash key into binary
                             //I am responsible, so recv the whole message from client and reply
-                            if(check_datarange(hash_key, self->node_ID)){//TODO
+                            if (check_datarange(hashed_key, self->node_ID, successor->node_ID, predecessor->node_ID) ==
+                                1) {//TODO
                                 //recv header
-                                char* rest_header = recv_n_char(i, HEADERLENGTH - 1);
-                                strcat(header,rest_header);
                                 send_message2client(header, i, HEADERLENGTH);//TODO
                             }
-                            //lookup
-                            else if(check_datarange(hash_key, self->node_ID) == 0){
-                                char* reply_message = create_lookup(hash_key,self);//TODO
+                                //my successor is responsible
+                            else if (check_datarange(hashed_key, self->node_ID, successor->node_ID,
+                                                     predecessor->node_ID) == 2) {
+                                //TODO
+                            }
+                                //lookup
+                            else if (check_datarange(hashed_key, self->node_ID, successor->node_ID,
+                                                     predecessor->node_ID) == 3) {
+                                char *reply_message = create_lookup(hashed_key, self);//TODO
                                 //TODO: an Nachfolger senden
                             }
-                        }
-                        else if(ack > 0){ //it's a reply from another peer then
+                        } else if (ack > 0) { //it's a reply from another peer then
                             //we should act like a client in this case
-                            char* rest_header = recv_n_char(i, HEADERLENGTH - 1);
-                            strcat(header,rest_header);
-                            send_message2client(header,i);
-                    }
-                    //it's the new protocol!
-                    else if(control > 0){
-                        if((commands[0] >> 1) & 0b1){ // make sure it's a reply
-                            uint16_t* hash_id = recv_n_char(i,2);
-                            char* lookup_message = make_old_from_new(hash_id,call_type);
-
-                            uint16_t* node_id = recv_n_char(i,2);
-                            uint32_t* node_ip = recv_n_char(i,4);
-                            uint16_t* node_port = recv_n_char(i,2);
-
-                            send_toPeer(node_id,node_ip,node_port,lookup_message);//TODO
- 
+                            char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
+                            char *header = strcat(commands, rest_header);
+                            send_message2client(header, i, HEADERLENGTH);
                         }
-                        else if((commands[0]) & 0b1){ // make sure it's a lookup
-                            // is_my_succesor_responsible() --> reply, else forward lookup
+                            //it's the new protocol!
+                        else if (control > 0) {
+                            if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
+                                uint16_t *hash_id = recv_n_char(i, 2);
+                                char *lookup_message = make_old_from_new(hash_id, call_type);
+
+                                uint16_t *node_id = recv_n_char(i, 2);
+                                uint32_t *node_ip = recv_n_char(i, 4);
+                                uint16_t *node_port = recv_n_char(i, 2);
+
+                                send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
+
+                            } else if ((commands[0]) & 0b1) { // make sure it's a lookup
+                                // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
+
+                            }
 
                         }
 
-                    }
-                    
 
-                    /*
-                    if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
-                        // got error or connection closed by client
-                        if (nbytes == 0) {
-                            // connection closed
-                            printf("selectserver: socket %d hung up\n", i);
+                        /*
+                        if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
+                            // got error or connection closed by client
+                            if (nbytes == 0) {
+                                // connection closed
+                                printf("selectserver: socket %d hung up\n", i);
+                            } else {
+                                perror("recv");
+                            }
+                            close(i); // bye!
+                            FD_CLR(i, &master); // remove from master set
                         } else {
-                            perror("recv");
-                        }
-                        close(i); // bye!
-                        FD_CLR(i, &master); // remove from master set
-                    } else {
-                        // we got some data from a client
-                        for(j = 0; j <= fdmax; j++) {
-                            // send to everyone!
-                            if (FD_ISSET(j, &master)) {
-                                // except the listener and ourselves
-                                if (j != listener && j != i) {
-                                    if (send(j, buf, nbytes, 0) == -1) {
-                                        perror("send");
+                            // we got some data from a client
+                            for(j = 0; j <= fdmax; j++) {
+                                // send to everyone!
+                                if (FD_ISSET(j, &master)) {
+                                    // except the listener and ourselves
+                                    if (j != listener && j != i) {
+                                        if (send(j, buf, nbytes, 0) == -1) {
+                                            perror("send");
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }*/
+                        }*/
 
-                } // END handle data from client
-            } // END got new incoming connection
-        } // END looping through file descriptors
-    } // END for(;;)--and you thought it would never end!
-
-    return 0;
-}
+                    } // END handle data from client
+                } // END got new incoming connection
+            } // END looping through file descriptors
+        } // END for(;;)--and you thought it would never end!
+    }
+        return 0;
+    }

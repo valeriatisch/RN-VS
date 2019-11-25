@@ -13,8 +13,7 @@
 char* recv_n_char(int new_fd, int size);
 void send_n_char(int new_fd, char* arr, int size);
 void send_message2client(char* header, int  new_fd, int headerlength);
-int check_datarange(uint16_t hash_key, uint16_t node_ID);
-
+int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, uint16_t predecessor_ID);
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
