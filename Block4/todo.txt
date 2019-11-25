@@ -26,12 +26,14 @@ recv_n_char() -> Anfrage empfangen (erst nur das 1. Byte?), um zu checken um wel
     recv_n_char() -> key_len und den Key empfangen, wir muessen rausfinden, wer zustaendig ist
         + Wenn Anfrage vom Client (Ack-Bit ist nicht gesetzt): Ist der angefragte Server(1) zustaendig fuer den Key? 
             Wenn ja: einfach alles wie beim letzten Mal
-            Wenn nicht: lookup zum naechsten Peer (lookup bit setzen)
-                Wenn wir beim Vorgaenger des zustaendigen Peers angekommen sind -> is_my_succ_responsible():
-                    Der Vorgaenger sendet ein reply mit der ID des zustaendigen Peers an den kommunizierenden Server(1) (neues Protokoll, reply bit setzen)
-                        recv_n_char -> Server(1) empfaengt den Rest (value_len, value) bei Bedarf u. sendet die Anfrage an den zustaendigen Peer (altes Protokoll)
-                            Der zustaendige Peer antwortet dem komm. Server(1) mit dem alten Protokoll
-                                Der Server(1) antwortet dem Client
+            Wenn nicht: Ist mein Vorgaenger oder Nachfolger zustaendig?
+                Wenn ja: Server(1) empfaengt den Rest (value_len, value) und leitet die Anfrage an den zustaendigen Peer
+                Wenn nicht: lookup zum naechsten Peer (lookup bit setzen)
+                    Wenn wir beim Vorgaenger des zustaendigen Peers angekommen sind -> is_my_succ_responsible():
+                        Der Vorgaenger sendet ein reply mit der ID des zustaendigen Peers an den kommunizierenden Server(1) (neues Protokoll, reply bit setzen)
+                            recv_n_char -> Server(1) empfaengt den Rest (value_len, value) bei Bedarf u. sendet die Anfrage an den zustaendigen Peer (altes Protokoll)
+                                Der zustaendige Peer antwortet dem komm. Server(1) mit dem alten Protokoll
+                                    Der Server(1) antwortet dem Client
         + Wenn Anfrage vom Server(1):
             Server(1) wird vom zustaendigen Peer behandelt wie ein normaler Client 
         + Wenn Antwort vom zustaendigen Peer an den komm. Server(1): //Erkennen wir vermutlich an dem gesetzten Ack-Bit?
