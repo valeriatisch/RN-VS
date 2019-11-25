@@ -45,6 +45,4 @@ recv_n_char() -> Anfrage empfangen (erst nur das 1. Byte?), um zu checken um wel
                 Wenn nein: sendet den lookup weiter an den naechsten Peer
         reply bit ist gesetzt:
             Server(1) bekommt die ID des zustaendigen Peers
-
-
-//test test      
+   
