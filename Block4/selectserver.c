@@ -18,14 +18,6 @@
 
 #define HEADERLENGTH 7
 
-struct ring_message {
-    char* commands; //spaeter malloc mit 7
-    uint8_t* hash_ID; //oder uint8_t hash_ID[2] oder uint16_t hash_ID, spaeter auf jeden Fall malloc 2 Bytes
-    uint16_t node_ID;
-    uint32_t node_IP;
-    uint16_t node_PORT;
-};
-
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
         return &(((struct sockaddr_in*)sa)->sin_addr);
@@ -58,9 +50,9 @@ int main(int argc, char* argv[]){
 
     struct addrinfo hints, *ai, *p;
 
-    struct ring_message* self;
-    struct ring_message* predecessor;
-    struct ring_message* successor;
+    struct peer* self;
+    struct peer* predecessor;
+    struct peer* successor;
 
     self->node_ID = atoi(argv[1]);
     self->node_IP = atoi(argv[2]);
@@ -169,8 +161,7 @@ int main(int argc, char* argv[]){
                     /*
                      * TODO: this is where the fun begins *imagine an Anakin-Skywalker-GIF!*
                      */
-                    char *commands = recv_n_char(i,
-                                                 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
+                    char *commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
                     int control = (commands[0] >> 7) & 0b1; //check the first bit
                     if (control <= 0) { //so it's the old protocol
                         int ack = (commands[0] >> 3) & 0b1;
@@ -207,20 +198,21 @@ int main(int argc, char* argv[]){
                             char *header = strcat(commands, rest_header);
                             send_message2client(header, i, HEADERLENGTH);
                         }
-                            //it's the new protocol!
-                        else if (control > 0) {
-                            if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
-                                uint16_t *hash_id = recv_n_char(i, 2);
-                                char *lookup_message = make_old_from_new(hash_id, call_type);
+                    }
+                    //it's the new protocol!
+                    else if (control > 0) {
+                        if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
+                            uint16_t *hash_id = recv_n_char(i, 2);
+                            char *lookup_message = make_old_from_new(hash_id, call_type);
 
-                                uint16_t *node_id = recv_n_char(i, 2);
-                                uint32_t *node_ip = recv_n_char(i, 4);
-                                uint16_t *node_port = recv_n_char(i, 2);
+                            uint16_t *node_id = recv_n_char(i, 2);
+                            uint32_t *node_ip = recv_n_char(i, 4);
+                            uint16_t *node_port = recv_n_char(i, 2);
 
-                                send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
+                            send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
 
-                            } else if ((commands[0]) & 0b1) { // make sure it's a lookup
-                                // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
+                        } else if ((commands[0]) & 0b1) { // make sure it's a lookup
+                            // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
 
                             }
 
@@ -257,6 +249,5 @@ int main(int argc, char* argv[]){
                 } // END got new incoming connection
             } // END looping through file descriptors
         } // END for(;;)--and you thought it would never end!
-    }
         return 0;
     }

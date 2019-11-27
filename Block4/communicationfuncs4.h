@@ -10,10 +10,28 @@
 #include <sys/socket.h>
 #include "hashtablefuncs4.h"
 
+struct peer {
+    uint16_t node_ID;
+    uint32_t node_IP;
+    uint16_t node_PORT;
+};
+
+struct ring_message {
+    char* commands;
+    uint16_t hash_ID;
+    uint16_t node_ID;
+    uint32_t node_IP;
+    uint16_t node_PORT;
+};
+
 char* recv_n_char(int new_fd, int size);
 void send_n_char(int new_fd, char* arr, int size);
 void send_message2client(char* header, int  new_fd, int headerlength);
 int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, uint16_t predecessor_ID);
+struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p);
+struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor);
+void sendringmessage2peer(int new_fd, struct ring_message* msg);    
+
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
@@ -120,6 +138,39 @@ int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, 
         if(hash_key <= successor_ID && hash_key > self_ID) return 2; //hash_key is located between my succ and me -> my succ is responsible
     } else return 3; //I can't see anyone who's responsible -> send lookup to the next peer
 
+}
+
+struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p){
+    
+    struct ring_message* msg = (struct ring_message*) malloc(sizeof(struct ring_message));
+
+    msg->commands[0] |= 0b10000001; //set control bit and lookup bit
+    msg->hash_ID = hashed_key;
+    msg->node_ID = p->node_ID;
+    msg->node_IP = p->node_IP;
+    msg->node_PORT = p->node_PORT;
+
+    return msg;
+}
+
+struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor){
+
+    struct ring_message* msg = (struct ring_message*) malloc(sizeof(struct ring_message));
+
+    msg->commands[0] |= 0b10000010; //set control bit and reply bit
+    msg->hash_ID = hashed_key;
+    msg->node_ID = successor->node_ID;
+    msg->node_IP = successor->node_IP;
+    msg->node_PORT = successor->node_PORT;
+
+    return msg;
+}
+
+void send_ringmessage2peer(int new_fd, struct ring_message* msg){
+    send_n_char(new_fd, msg->commands, sizeof(msg->commands));
+    send_n_char(new_fd, &msg->node_ID, sizeof(uint16_t));
+    send_n_char(new_fd, &msg->node_IP, sizeof(uint32_t));
+    send_n_char(new_fd, &msg->node_PORT, sizeof(uint16_t));
 }
 
 #endif //BLOCK4_COMMUNICATIONFUNCS4_H
