@@ -19,7 +19,6 @@ Datenbereich fuer 4. peer: 49152 - 65535
 FUNKTIONEN:
 make_old_from_new() -> erzeuge altes protokoll und sende an entsprechenden peer, ausgehend von erhaltenem reply(mit ID)
 check_datarange() -> 1. key hashen
-is_my_succ_responsible() -> Datenbereiche checken
 send_message2client()
     - ACK-bit immer setzten (get)
 send_toPeer(ID,IP,Port,lookup_message);    

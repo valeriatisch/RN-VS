@@ -51,21 +51,17 @@ int main(int argc, char* argv[]){
     struct addrinfo hints, *ai, *p;
 
     struct peer* self;
-    struct peer* predecessor;
-    struct peer* successor;
 
     self->node_ID = atoi(argv[1]);
     self->node_IP = atoi(argv[2]);
     self->node_PORT = atoi(argv[3]);
-
-    /* I don't know yet if we're gonna need all this crap
-    predecessor->node_ID = atoi(argv[4]);
-    predecessor->node_IP = atoi(argv[5])
-    predecessor->node_PORT = atoi(argv[6]);
-    successor->node_ID = atoi(argv[7]);
-    successor->node_PORT = atoi(argv[8]);
-    successor->node_PORT = atoi(argv[9])
-    */
+    // I don't know yet if we're gonna need all this crap
+    self->predecessor->node_ID = atoi(argv[4]);
+    self->predecessor->node_IP = atoi(argv[5]);
+    self->predecessor->node_PORT = atoi(argv[6]);
+    self->successor->node_ID = atoi(argv[7]);
+    self->successor->node_PORT = atoi(argv[8]);
+    self->successor->node_PORT = atoi(argv[9]);
 
     FD_ZERO(&master);    // clear the master and temp sets
     FD_ZERO(&read_fds);
@@ -176,19 +172,19 @@ int main(int argc, char* argv[]){
 
                             uint16_t hashed_key = hash(key, keylen); //hash key into binary
                             //I am responsible, so recv the whole message from client and reply
-                            if (check_datarange(hashed_key, self->node_ID, successor->node_ID, predecessor->node_ID) ==
+                            if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) ==
                                 1) {//TODO
                                 //recv header
                                 send_message2client(header, i, HEADERLENGTH);//TODO
                             }
                                 //my successor is responsible
-                            else if (check_datarange(hashed_key, self->node_ID, successor->node_ID,
-                                                     predecessor->node_ID) == 2) {
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID,
+                                                     self->predecessor->node_ID) == 2) {
                                 //TODO
                             }
                                 //lookup
-                            else if (check_datarange(hashed_key, self->node_ID, successor->node_ID,
-                                                     predecessor->node_ID) == 3) {
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID,
+                                                     self->predecessor->node_ID) == 3) {
                                 char *reply_message = create_lookup(hashed_key, self);//TODO
                                 //TODO: an Nachfolger senden
                             }

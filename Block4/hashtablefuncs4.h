@@ -5,16 +5,7 @@
 #ifndef BLOCK4_HASHTABLEFUNCS4_H
 #define BLOCK4_HASHTABLEFUNCS4_H
 
-#include <stdio.h>
-#include "uthash.h"
-
-struct HASH_elem{
-    char* key;
-    uint16_t key_length;
-    char* value;
-    uint32_t value_length;
-    UT_hash_handle hh;
-};
+#include "structs.h"
 
 struct HASH_elem *table = NULL;
 
