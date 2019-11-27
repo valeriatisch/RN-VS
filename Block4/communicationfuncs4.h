@@ -14,8 +14,9 @@ void send_message2client(char* header, int  new_fd, int headerlength);
 int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, uint16_t predecessor_ID);
 struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p);
 struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor);
-void sendringmessage2peer(int new_fd, struct ring_message* msg);
-
+void sendringmessage(int new_fd, struct ring_message* msg);
+void recv_parts_of_rm(int new_fd, void* ptr, int size);
+struct ring_message* recv_ringmessage(int new_fd);
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
@@ -137,7 +138,7 @@ struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p){
     return msg;
 }
 
-struct ring_message* create_reply(uint16_t hashed_key, struct peer* self){
+struct ring_message* create_reply(uint16_t hashed_key, struct peer* self){ //hier ist self der Peer, dessen Nachfolger der zustanedige gesuchte Peer ist
 
     struct ring_message* msg = (struct ring_message*) malloc(sizeof(struct ring_message));
 
@@ -150,11 +151,41 @@ struct ring_message* create_reply(uint16_t hashed_key, struct peer* self){
     return msg;
 }
 
-void send_ringmessage2peer(int new_fd, struct ring_message* msg){
+void send_ringmessage(int new_fd, struct ring_message* msg){
     send_n_char(new_fd, msg->commands, sizeof(msg->commands));
+    send_n_char(new_fd, msg->hash_ID, sizeof(uint16_t));
     send_n_char(new_fd, &msg->node_ID, sizeof(uint16_t));
     send_n_char(new_fd, &msg->node_IP, sizeof(uint32_t));
     send_n_char(new_fd, &msg->node_PORT, sizeof(uint16_t));
+}
+
+//function to receive a part of a ring message e.g. ID
+void recv_parts_of_rm(int new_fd, void* ptr, int size) {
+    while (size > 0) {
+        ssize_t curr = recv(new_fd, ptr, size, 0);
+        if (curr <= 0) {
+            if (curr == -1) {
+                perror("An error occurred while receiving.");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        size -= curr;
+        ptr += curr;
+    }
+}
+
+struct ring_message* recv_ringmessage(int new_fd){
+
+    struct ring_message* msg = (struct ring_message*) malloc(sizeof(struct ring_message));
+
+    msg->commands = recv_n_char(new_fd, 1);
+    recv_parts_of_rm(new_fd, &msg->hash_ID, sizeof(uint16_t));
+    recv_parts_of_rm(new_fd, &msg->node_ID, sizeof(uint16_t));
+    recv_parts_of_rm(new_fd, &msg->node_IP, sizeof(uint32_t));
+    recv_parts_of_rm(new_fd, &msg->node_PORT, sizeof(uint16_t));
+    
+    return msg;
 }
 
 #endif //BLOCK4_COMMUNICATIONFUNCS4_H

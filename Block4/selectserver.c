@@ -52,15 +52,15 @@ int main(int argc, char* argv[]){
 
     struct peer* self;
 
-    self->node_ID = atoi(argv[1]);
-    self->node_IP = atoi(argv[2]);
+    self->node_ID = atoi(argv[1]); 
+    self->node_IP = inet_network(argv[2]); //converts a string in IPv4 numbers-and-dots notation host byte order
     self->node_PORT = atoi(argv[3]);
     // I don't know yet if we're gonna need all this crap
     self->predecessor->node_ID = atoi(argv[4]);
-    self->predecessor->node_IP = atoi(argv[5]);
+    self->predecessor->node_IP = inet_network(argv[5]);
     self->predecessor->node_PORT = atoi(argv[6]);
     self->successor->node_ID = atoi(argv[7]);
-    self->successor->node_PORT = atoi(argv[8]);
+    self->successor->node_IP = inet_network(argv[8]);
     self->successor->node_PORT = atoi(argv[9]);
 
     FD_ZERO(&master);    // clear the master and temp sets
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]){
                             send_message2client(header, i, HEADERLENGTH);
                         }
                     }
-                    //it's the new protocol!
+                        //it's the new protocol!
                     else if (control > 0) {
                         if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
                             uint16_t *hash_id = recv_n_char(i, 2);
@@ -210,40 +210,40 @@ int main(int argc, char* argv[]){
                         } else if ((commands[0]) & 0b1) { // make sure it's a lookup
                             // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
 
-                            }
-
                         }
 
+                    }
 
-                        /*
-                        if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
-                            // got error or connection closed by client
-                            if (nbytes == 0) {
-                                // connection closed
-                                printf("selectserver: socket %d hung up\n", i);
-                            } else {
-                                perror("recv");
-                            }
-                            close(i); // bye!
-                            FD_CLR(i, &master); // remove from master set
+
+                    /*
+                    if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
+                        // got error or connection closed by client
+                        if (nbytes == 0) {
+                            // connection closed
+                            printf("selectserver: socket %d hung up\n", i);
                         } else {
-                            // we got some data from a client
-                            for(j = 0; j <= fdmax; j++) {
-                                // send to everyone!
-                                if (FD_ISSET(j, &master)) {
-                                    // except the listener and ourselves
-                                    if (j != listener && j != i) {
-                                        if (send(j, buf, nbytes, 0) == -1) {
-                                            perror("send");
-                                        }
+                            perror("recv");
+                        }
+                        close(i); // bye!
+                        FD_CLR(i, &master); // remove from master set
+                    } else {
+                        // we got some data from a client
+                        for(j = 0; j <= fdmax; j++) {
+                            // send to everyone!
+                            if (FD_ISSET(j, &master)) {
+                                // except the listener and ourselves
+                                if (j != listener && j != i) {
+                                    if (send(j, buf, nbytes, 0) == -1) {
+                                        perror("send");
                                     }
                                 }
                             }
-                        }*/
+                        }
+                    }*/
 
-                    } // END handle data from client
-                } // END got new incoming connection
-            } // END looping through file descriptors
-        } // END for(;;)--and you thought it would never end!
-        return 0;
-    }
+                } // END handle data from client
+            } // END got new incoming connection
+        } // END looping through file descriptors
+    } // END for(;;)--and you thought it would never end!
+    return 0;
+}
