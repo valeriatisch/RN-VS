@@ -160,9 +160,16 @@ int main(int argc, char* argv[]){
                     char *commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
                     int control = (commands[0] >> 7) & 0b1; //check the first bit
                     if (control <= 0) { //so it's the old protocol
+
                         int ack = (commands[0] >> 3) & 0b1;
                         if (ack <= 0) { //if the ack bit isn't set it's a request from a client
-                            //receive header
+                            
+                            // TODO: save globally to easily access
+                            int requested_del =  commands[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
+                            int requested_set = (commands[0] >> 1) & 0b1; //
+                            int requested_get = (commands[0] >> 2) & 0b1;
+                            
+                            // receive header
                             char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
                             char *header = strcat(commands, rest_header);
 
@@ -172,21 +179,20 @@ int main(int argc, char* argv[]){
 
                             uint16_t hashed_key = hash(key, keylen); //hash key into binary
                             //I am responsible, so recv the whole message from client and reply
-                            if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) ==
-                                1) {//TODO
-                                //recv header
-                                send_message2client(header, i, HEADERLENGTH);//TODO
+                            if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {                             
+                                send_message2client(header, i, HEADERLENGTH);
                             }
-                                //my successor is responsible
-                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID,
-                                                     self->predecessor->node_ID) == 2) {
-                                //TODO
+                            //my successor is responsible
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
+                                 // reply to first peer, with id of successor
+                                send_ringmessage(peer_fd, create_reply(hashed_key, self));
+                                // TODO: fd from peer as argument: peer_fd
                             }
-                                //lookup
-                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID,
-                                                     self->predecessor->node_ID) == 3) {
-                                char *reply_message = create_lookup(hashed_key, self);//TODO
-                                //TODO: an Nachfolger senden
+                            //lookup for next peer
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 3) {
+                                send_ringmessage(peer_fd, create_lookup(hashed_key, self));
+                                // TODO: fd from peer as argument: peer_fd
+
                             }
                         } else if (ack > 0) { //it's a reply from another peer then
                             //we should act like a client in this case
@@ -199,7 +205,7 @@ int main(int argc, char* argv[]){
                     else if (control > 0) {
                         if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
                             uint16_t *hash_id = recv_n_char(i, 2);
-                            char *lookup_message = make_old_from_new(hash_id, call_type);
+                            char *lookup_message = make_old_from_new(hash_id, call_type); //TODO
 
                             uint16_t *node_id = recv_n_char(i, 2);
                             uint32_t *node_ip = recv_n_char(i, 4);
@@ -209,7 +215,25 @@ int main(int argc, char* argv[]){
 
                         } else if ((commands[0]) & 0b1) { // make sure it's a lookup
                             // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
+                            uint16_t *hash_id = recv_n_char(i, 2);
+                            uint16_t *node_id = recv_n_char(i, 2);
+                            uint32_t *node_ip = recv_n_char(i, 4);
+                            uint16_t *node_port = recv_n_char(i, 2);
 
+                            if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 1){
+                                //never
+                                perror("check_datarange");
+                            }
+                            else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
+                                //next node is responsible
+                                send_ringmessage(peer_fd, create_reply(hashed_key, self));
+
+                            }
+                            else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
+                                //send lookup to next node
+                                send_ringmessage(peer_fd, create_lookup(hashed_key, self));
+                                
+                            }
                         }
 
                     }
