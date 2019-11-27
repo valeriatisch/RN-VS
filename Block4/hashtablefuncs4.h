@@ -60,4 +60,12 @@ void set(char* new_key, uint16_t key_length, char* value, uint32_t value_length)
     memcpy(q->value, value, value_length);
 }
 
+//https://stackoverflow.com/questions/36896420/casting-uint8-t-array-into-uint16-t-value-in-c
+uint16_t hash(char* key, uint16_t key_len){
+    if(key_len == 1){
+        return (uint16_t) ((uint8_t) key[0]);
+    }
+    return ntohs(*(uint16_t*)key);
+}
+
 #endif //BLOCK4_HASHTABLEFUNCS4_H

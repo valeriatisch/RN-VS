@@ -121,6 +121,7 @@ int main(int argc, char* argv[]){
 
     // add the listen
     /*
+    //TODO: was ist das hier???
     char* ptr
     char* ptr
     char* ptr
@@ -182,20 +183,7 @@ int main(int argc, char* argv[]){
                             //receive key
                             char *key = recv_n_char(i, keylen);
 
-                            if ((keylen * 8) < 16U) {
-                                //fill with nullbytes
-                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
-                                memset(hash_key, '\0', sizeof hash_key);
-                                memcpy(hash_key, key, keylen);
-                            } else if ((keylen * 8) > 16U) {
-                                //key abschneiden
-                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
-                                memcpy(hash_key, key, sizeof(uint16_t));
-                            } else if ((keylen * 8) == 16U) {
-                                uint8_t *hash_key = malloc(sizeof(uint8_t) * 2);
-                                memcpy(hash_key, key, sizeof(uint16_t));
-                            }
-                            uint16_t hashed_key = hash(hash_key); //hash key into binary
+                            uint16_t hashed_key = hash(key, keylen); //hash key into binary
                             //I am responsible, so recv the whole message from client and reply
                             if (check_datarange(hashed_key, self->node_ID, successor->node_ID, predecessor->node_ID) ==
                                 1) {//TODO
