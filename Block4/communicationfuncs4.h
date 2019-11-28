@@ -10,7 +10,7 @@
 
 char* recv_n_char(int new_fd, int size);
 void send_n_char(int new_fd, char* arr, int size);
-void send_message2client(char* header, int  new_fd, int headerlength);
+void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _keylen, char* _key, uint32_t _valuelen, char* _value);
 int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, uint16_t predecessor_ID);
 struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p);
 struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor);
@@ -63,7 +63,7 @@ void send_n_char(int new_fd, char* arr, int size){
     }
 }
 
-void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _keylen, char* _key, uint32_t _valuelen, char* -value){
+void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _keylen, char* _key, uint32_t _valuelen, char* _value){
     int _requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
     int _requested_set = (header[0] >> 1) & 0b1; //same shit with set
     int _requested_get = (header[0] >> 2) & 0b1; //and get

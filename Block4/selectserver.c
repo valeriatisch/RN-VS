@@ -178,20 +178,24 @@ int main(int argc, char* argv[]){
                             new_elem->fd = i;
                             memcpy(new_elem->header, header, sizeof header);
                             memcpy(new_elem->key, key, sizeof key);
+
                             //get value-length and receive value
+                            uint32_t valuelen = 0;
+                            char* value = NULL;
                             if(requested_set > 0){
-                                uint32_t valuelen = (header[3] << 24)
+                                valuelen = (header[3] << 24)
                                                     | ((header[4] & 0xFF) << 16)
                                                     | ((header[5] & 0xFF) << 8)
                                                     | (header[6] & 0xFF);
-                                char* value = recv_n_char(i, valuelen);
+                                value = recv_n_char(i, valuelen);
                                 memcpy(new_elem->value, value, sizeof value);
 
                             }
                             //I am responsible, so recv the whole message from client and reply
                             if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {                             
                                 send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value);
-                            //my successor is responsible
+                            }
+                             //my successor is responsible
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
                                  // reply to first peer, yourself, with id of successor
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
@@ -222,10 +226,21 @@ int main(int argc, char* argv[]){
 
                             }
                         } else if (ack > 0) { //it's a reply from another peer then
-                            //we should act like a client in this case
-                            char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
-                            char *header = strcat(commands, rest_header);
-                            send_message2client(header, i, HEADERLENGTH);
+                            //receive key
+                            uint16_t key = recv_n_char(i,2);
+                            //receive node ID from responsible node
+                            uint16_t node_ID = recv_n_char(i,2);
+                            //receive node IP from responsible node
+                            uint32_t node_IP = recv_n_char(i,4);
+                            //receive node PORT from responsible node
+                            uint16_t node_PORT = recv_n_char(i,2);
+                            //hash key into binary, just hash with 2??? we have no keylength here
+                            uint16_t hashed_key = hash(key, 2); 
+
+                            // access intern hash table;
+                            struct intern_HT *new_elem = intern_get(hashed_key);
+                            send_message2client(new_elem->header, new_elem->fd, HEADERLENGTH, sizeof(new_elem->key), new_elem->key,
+                             sizeof(new_elem->value), new_elem->value);
                         }
                     }
                         //it's the new protocol!

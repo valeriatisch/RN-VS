@@ -6,6 +6,7 @@
 #define BLOCK4_HASHTABLEFUNCS4_H
 
 #include "structs.h"
+#include "uthash.h"
 
 struct HASH_elem *table = NULL;
 struct intern_HT *intern_table = NULL;
@@ -25,7 +26,6 @@ void delete(char* key, uint16_t keylen){
         free(s->value);
         free(s);
     }
-
 }
 
 void set(char* new_key, uint16_t key_length, char* value, uint32_t value_length){
@@ -62,6 +62,8 @@ uint16_t hash(char* key, uint16_t key_len){
 
 //noch nicht umgeschrieben
 void intern_set(struct ){
+    struct intern_HT *q = NULL;
+
     struct HASH_elem *q = NULL;
     HASH_FIND(hh, table, new_key, key_length, q);
     if(q != NULL){
@@ -83,6 +85,13 @@ void intern_set(struct ){
     q->value = (char*) malloc(value_length);
     q->value_length = value_length;
     memcpy(q->value, value, value_length);
+}
+
+//noch nicht umgeschrieben
+struct intern_HT *get(uint16_t hashed_key){
+    struct intern_HT *s = NULL;
+    HASH_FIND_INT(hh, hashed_key, s);
+    return s;
 }
 
 #endif //BLOCK4_HASHTABLEFUNCS4_H
