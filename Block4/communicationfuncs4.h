@@ -17,6 +17,7 @@ struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor);
 void sendringmessage(int new_fd, struct ring_message* msg);
 void recv_parts_of_rm(int new_fd, void* ptr, int size);
 struct ring_message* recv_ringmessage(int new_fd);
+int get_fd(uint16_t node_ip, uint16_t node_port);
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
@@ -62,36 +63,25 @@ void send_n_char(int new_fd, char* arr, int size){
     }
 }
 
-void send_message2client(char* header, int  new_fd, int headerlength){
-    int requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
-    int requested_set = (header[0] >> 1) & 0b1; //same shit with set
-    int requested_get = (header[0] >> 2) & 0b1; //and get
+void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _keylen, char* _key, uint32_t _valuelen, char* -value){
+    int _requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
+    int _requested_set = (header[0] >> 1) & 0b1; //same shit with set
+    int _requested_get = (header[0] >> 2) & 0b1; //and get
 
-    uint16_t keylen = (header[1] << 8) | header[2];
-    uint32_t valuelen = (header[3] << 24)
-                        | ((header[4] & 0xFF) << 16)
-                        | ((header[5] & 0xFF) << 8)
-                        | (header[6] & 0xFF);
-    //receive key
-    char* key = recv_n_char(new_fd, keylen);
-    //receive value
-    char* value = NULL;
-    if(valuelen > 0) value = recv_n_char(new_fd, valuelen);
-
-    if(requested_del > 0){
-        delete(key, keylen);
+    if(_requested_del > 0){
+        delete(_key, _keylen);
         header[0] |= 0b1000;
         //send header
         send_n_char(new_fd, header, headerlength);
     }
-    else if(requested_set > 0){
-        set(key, keylen, value, valuelen);
+    else if(_requested_set > 0){
+        set(_key, _keylen, _value, _valuelen);
         header[0] |= 0b1000;
         //send header
         send_n_char(new_fd, header, headerlength);
     }
-    else if(requested_get > 0){
-        struct HASH_elem *result = get(key, keylen);
+    else if(_requested_get > 0){
+        struct HASH_elem *result = get(_key, _keylen);
         header[0] |= 0b1000;
         //no element found
         if(result == NULL){
@@ -106,7 +96,7 @@ void send_message2client(char* header, int  new_fd, int headerlength){
             header[5] = (len >> 8) & 0xFF;
             header[6] = len & 0xFF;
             send_n_char(new_fd, header, headerlength);
-            send_n_char(new_fd, result->key, keylen);
+            send_n_char(new_fd, result->key, _keylen);
             send_n_char(new_fd, result->value, result->value_length);
         }
     }
@@ -188,4 +178,41 @@ struct ring_message* recv_ringmessage(int new_fd){
     return msg;
 }
 
-#endif //BLOCK4_COMMUNICATIONFUNCS4_H
+int get_fd(uint16_t node_ip, uint16_t node_port){
+    int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
+    struct addrinfo hints, *servinfo, *p;
+    int yes=1;
+    int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
+
+    if ((rv = getaddrinfo((char*) node_ip, (char*) node_port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
+            perror("server: socket");
+            continue;
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+
+        break;
+    }
+
+    freeaddrinfo(servinfo); // all done with this structure
+
+    return new_fd;
+}
+
+
+
+#endif //BLOCK4_COMMUNICATINFUNCS4_H

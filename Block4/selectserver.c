@@ -98,6 +98,8 @@ int main(int argc, char* argv[]){
         fprintf(stderr, "selectserver: failed to bind\n");
         exit(2);
     }
+                 
+                
 
     freeaddrinfo(ai); // all done with this
 
@@ -108,14 +110,6 @@ int main(int argc, char* argv[]){
     }
 
     // add the listen
-    /*
-    //TODO: was ist das hier???
-    char* ptr
-    char* ptr
-    char* ptr
-    char* ptr
-    char* ptrer to the master set
-    */
     FD_SET(listener, &master);
 
     // keep track of the biggest file descriptor
@@ -154,6 +148,7 @@ int main(int argc, char* argv[]){
                                newfd);
                     }
                 } else {
+                
                     /*
                      * TODO: this is where the fun begins *imagine an Anakin-Skywalker-GIF!*
                      */
@@ -163,33 +158,65 @@ int main(int argc, char* argv[]){
 
                         int ack = (commands[0] >> 3) & 0b1;
                         if (ack <= 0) { //if the ack bit isn't set it's a request from a client
-                            
-                            // TODO: save globally to easily access
-                            int requested_del =  commands[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
-                            int requested_set = (commands[0] >> 1) & 0b1; //
-                            int requested_get = (commands[0] >> 2) & 0b1;
-                            
                             // receive header
                             char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
                             char *header = strcat(commands, rest_header);
-
-                            uint16_t keylen = (header[1] << 8) | header[2];
+                            
                             //receive key
+                            uint16_t keylen = (header[1] << 8) | header[2];
                             char *key = recv_n_char(i, keylen);
+                            
+                            //get call type from header get/set/del
+                            int requested_del = header[0] & 0b1; //wird groesser 0 sein, wenn das delete bit gesetzt ist
+                            int requested_set = (header[0] >> 1) & 0b1; //
+                            int requested_get = (header[0] >> 2) & 0b1;
 
                             uint16_t hashed_key = hash(key, keylen); //hash key into binary
+
+                            struct intern_HT* new_elem = malloc(sizeof(struct intern_HT));
+                            new_elem->hashed_key = hashed_key;
+                            new_elem->fd = i;
+                            memcpy(new_elem->header, header, sizeof header);
+                            memcpy(new_elem->key, key, sizeof key);
+                            //get value-length and receive value
+                            if(requested_set > 0){
+                                uint32_t valuelen = (header[3] << 24)
+                                                    | ((header[4] & 0xFF) << 16)
+                                                    | ((header[5] & 0xFF) << 8)
+                                                    | (header[6] & 0xFF);
+                                char* value = recv_n_char(i, valuelen);
+                                memcpy(new_elem->value, value, sizeof value);
+
+                            }
                             //I am responsible, so recv the whole message from client and reply
                             if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {                             
-                                send_message2client(header, i, HEADERLENGTH);
-                            }
+                                send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value);
                             //my successor is responsible
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
-                                 // reply to first peer, with id of successor
-                                send_ringmessage(peer_fd, create_reply(hashed_key, self));
+                                 // reply to first peer, yourself, with id of successor
+                                int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
+                                if(requested_set > 0) {
+                                    //get value-length and receive value
+                                    uint32_t valuelen = (header[3] << 24)
+                                                        | ((header[4] & 0xFF) << 16)
+                                                        | ((header[5] & 0xFF) << 8)
+                                                        | (header[6] & 0xFF);
+                                    char* value = recv_n_char(i, valuelen);
+
+                                    send_n_char(peer_fd,header,HEADERLENGTH);
+                                    send_n_char(peer_fd,key,keylen);
+                                    send_n_char(peer_fd,value,valuelen);
+                                }
+                                else{
+                                    send_n_char(peer_fd,header,HEADERLENGTH);
+                                    send_n_char(peer_fd,key,keylen);
+                                }
+                                send_ringmessage(self->successor, create_reply(hashed_key, self->successor));
                                 // TODO: fd from peer as argument: peer_fd
                             }
                             //lookup for next peer
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 3) {
+                                int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
                                 send_ringmessage(peer_fd, create_lookup(hashed_key, self));
                                 // TODO: fd from peer as argument: peer_fd
 
@@ -205,11 +232,16 @@ int main(int argc, char* argv[]){
                     else if (control > 0) {
                         if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
                             uint16_t *hash_id = recv_n_char(i, 2);
-                            char *lookup_message = make_old_from_new(hash_id, call_type); //TODO
-
                             uint16_t *node_id = recv_n_char(i, 2);
                             uint32_t *node_ip = recv_n_char(i, 4);
                             uint16_t *node_port = recv_n_char(i, 2);
+
+                            int call_type;
+                            if(requested_del > 0) call_type = 0;
+                            else if(requested_set > 0) call_type = 1;
+                            else if(requested_get > 0) call_type = 2;
+                            
+                            char *lookup_message = make_old_from_new(hash_id, call_type); //TODO
 
                             send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
 
@@ -225,49 +257,33 @@ int main(int argc, char* argv[]){
                                 perror("check_datarange");
                             }
                             else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
-                                //next node is responsible
-                                send_ringmessage(peer_fd, create_reply(hashed_key, self));
+                                //next node is responsible, send responsible node to first node
+                                int peer_fd = get_fd(node_ip,node_port);
+                                send_ringmessage(peer_fd, create_reply(hash_id, self->successor));
 
                             }
                             else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
                                 //send lookup to next node
-                                send_ringmessage(peer_fd, create_lookup(hashed_key, self));
+                                int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
                                 
-                            }
-                        }
+                                struct peer* first = malloc(sizeof(struct peer));
+                                first->node_ID = node_id;
+                                first->node_IP = node_ip;
+                                first->node_PORT = node_port;
+                                
+                                send_ringmessage(peer_fd, create_lookup(hash_id, first));
 
-                    }
+                                free(first);
+                              
+                
 
-
-                    /*
-                    if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
-                        // got error or connection closed by client
-                        if (nbytes == 0) {
-                            // connection closed
-                            printf("selectserver: socket %d hung up\n", i);
-                        } else {
-                            perror("recv");
-                        }
-                        close(i); // bye!
-                        FD_CLR(i, &master); // remove from master set
-                    } else {
-                        // we got some data from a client
-                        for(j = 0; j <= fdmax; j++) {
-                            // send to everyone!
-                            if (FD_ISSET(j, &master)) {
-                                // except the listener and ourselves
-                                if (j != listener && j != i) {
-                                    if (send(j, buf, nbytes, 0) == -1) {
-                                        perror("send");
-                                    }
-                                }
-                            }
-                        }
-                    }*/
-
-                } // END handle data from client
-            } // END got new incoming connection
-        } // END looping through file descriptors
-    } // END for(;;)--and you thought it would never end!
+                            } 
+                        } 
+                    } 
+                }// END handle data from client
+            }// END got new incoming connection
+        }// END looping through file descriptors 
+    }// END for(;;)--and you thought it would never end!             
     return 0;
+    
 }

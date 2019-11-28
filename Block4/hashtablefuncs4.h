@@ -8,6 +8,7 @@
 #include "structs.h"
 
 struct HASH_elem *table = NULL;
+struct intern_HT *intern_table = NULL;
 
 struct HASH_elem *get(char* key, uint16_t keylen){
     struct HASH_elem *s = NULL;
@@ -57,6 +58,31 @@ uint16_t hash(char* key, uint16_t key_len){
         return (uint16_t) ((uint8_t) key[0]);
     }
     return ntohs(*(uint16_t*)key);
+}
+
+//noch nicht umgeschrieben
+void intern_set(struct ){
+    struct HASH_elem *q = NULL;
+    HASH_FIND(hh, table, new_key, key_length, q);
+    if(q != NULL){
+        delete(new_key, key_length);
+        q = (struct HASH_elem*) malloc(sizeof(struct HASH_elem));
+        q->key = (char*) malloc(key_length);
+        q->key_length = key_length;
+        memcpy(q->key, new_key, key_length);
+        HASH_ADD_KEYPTR(hh, table, q->key, q->key_length, q);
+    }
+    if(q == NULL){
+        q = (struct HASH_elem*) malloc(sizeof(struct HASH_elem));
+        q->key = (char*) malloc(key_length);
+        q->key_length = key_length;
+        memcpy(q->key, new_key, key_length);
+        HASH_ADD_KEYPTR(hh, table, q->key, q->key_length, q);
+    }
+
+    q->value = (char*) malloc(value_length);
+    q->value_length = value_length;
+    memcpy(q->value, value, value_length);
 }
 
 #endif //BLOCK4_HASHTABLEFUNCS4_H

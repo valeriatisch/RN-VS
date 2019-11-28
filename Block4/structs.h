@@ -7,6 +7,15 @@
 
 #include "uthash.h"
 
+struct intern_HT{
+    uint16_t hashed_key;
+    int fd;
+    char* header;
+    char* key;
+    char* value;
+    UT_hash_handle hh;
+};
+
 struct HASH_elem{
     char* key;
     uint16_t key_length;
