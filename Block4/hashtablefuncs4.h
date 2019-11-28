@@ -60,37 +60,34 @@ uint16_t hash(char* key, uint16_t key_len){
     return ntohs(*(uint16_t*)key);
 }
 
-//noch nicht umgeschrieben
-void intern_set(struct ){
-    struct intern_HT *q = NULL;
-
-    struct HASH_elem *q = NULL;
-    HASH_FIND(hh, table, new_key, key_length, q);
-    if(q != NULL){
-        delete(new_key, key_length);
-        q = (struct HASH_elem*) malloc(sizeof(struct HASH_elem));
-        q->key = (char*) malloc(key_length);
-        q->key_length = key_length;
-        memcpy(q->key, new_key, key_length);
-        HASH_ADD_KEYPTR(hh, table, q->key, q->key_length, q);
+void intern_delete(uint16_t hashed_key){
+    struct intern_HT *s = NULL;
+    HASH_FIND_INT(intern_table, &hashed_key, s);
+    if(s != NULL){
+        HASH_DEL(intern_table, s);
     }
-    if(q == NULL){
-        q = (struct HASH_elem*) malloc(sizeof(struct HASH_elem));
-        q->key = (char*) malloc(key_length);
-        q->key_length = key_length;
-        memcpy(q->key, new_key, key_length);
-        HASH_ADD_KEYPTR(hh, table, q->key, q->key_length, q);
-    }
-
-    q->value = (char*) malloc(value_length);
-    q->value_length = value_length;
-    memcpy(q->value, value, value_length);
 }
 
-//noch nicht umgeschrieben
-struct intern_HT *get(uint16_t hashed_key){
+void intern_set(struct intern_HT* s){
+    struct intern_HT *q = NULL;
+
+    HASH_FIND_INT(intern_table, &s->hashed_key, q);
+
+    if(q != NULL) {
+        intern_delete(q->hashed_key);
+    }
+    q = (struct intern_HT*) malloc(sizeof(struct intern_HT));
+    q->hashed_key = s->hashed_key;
+    q->fd = s->fd;
+    memcpy(q->header, s->header, sizeof(s->header));
+    memcpy(q->key, s->key, sizeof s->key);
+    memcpy(q->value, s->value, sizeof s->value);
+    HASH_ADD_INT(intern_table, hashed_key, q);
+}
+
+struct intern_HT* intern_get(uint16_t hashed_key){
     struct intern_HT *s = NULL;
-    HASH_FIND_INT(hh, hashed_key, s);
+    HASH_FIND_INT(intern_table, &hashed_key, s);
     return s;
 }
 
