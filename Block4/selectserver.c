@@ -57,10 +57,10 @@ int main(int argc, char* argv[]){
     self->node_PORT = atoi(argv[3]);
     // I don't know yet if we're gonna need all this crap
     self->predecessor->node_ID = atoi(argv[4]);
-    self->predecessor->node_IP = inet_network(argv[5]);
+    self->predecessor->node_IP = inet_addr(argv[5]);
     self->predecessor->node_PORT = atoi(argv[6]);
     self->successor->node_ID = atoi(argv[7]);
-    self->successor->node_IP = inet_network(argv[8]);
+    self->successor->node_IP = inet_addr(argv[8]);
     self->successor->node_PORT = atoi(argv[9]);
 
     FD_ZERO(&master);    // clear the master and temp sets
@@ -191,22 +191,17 @@ int main(int argc, char* argv[]){
                                 memcpy(new_elem->value, value, sizeof value);
 
                             }
-                            //I am responsible, so recv the whole message from client and reply
+                            //I am responsible
                             if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {                             
                                 send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value);
                             }
                              //my successor is responsible
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
-                                 // reply to first peer, yourself, with id of successor
+                                //get file decsriptor of my successor, who's responsible
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
+                                //send_ringmessage(peer_fd, create_reply(hashed_key, self->successor)); ??
+                                //send him cliet's request
                                 if(requested_set > 0) {
-                                    //get value-length and receive value
-                                    uint32_t valuelen = (header[3] << 24)
-                                                        | ((header[4] & 0xFF) << 16)
-                                                        | ((header[5] & 0xFF) << 8)
-                                                        | (header[6] & 0xFF);
-                                    char* value = recv_n_char(i, valuelen);
-
                                     send_n_char(peer_fd,header,HEADERLENGTH);
                                     send_n_char(peer_fd,key,keylen);
                                     send_n_char(peer_fd,value,valuelen);
@@ -215,17 +210,21 @@ int main(int argc, char* argv[]){
                                     send_n_char(peer_fd,header,HEADERLENGTH);
                                     send_n_char(peer_fd,key,keylen);
                                 }
-                                send_ringmessage(self->successor, create_reply(hashed_key, self->successor));
-                                // TODO: fd from peer as argument: peer_fd
                             }
                             //lookup for next peer
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 3) {
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
                                 send_ringmessage(peer_fd, create_lookup(hashed_key, self));
-                                // TODO: fd from peer as argument: peer_fd
-
                             }
-                        } else if (ack > 0) { //it's a reply from another peer then
+                        } else if (ack > 0) { //it's a reply from another peer then //TODO: was soll hier wirklich passieren?
+                            //TODO: was soll hier recvt werden?
+
+                            /*
+                             * use recv_ringmessage to recv the new protocol
+                             * struct ring_message* x = recv_ringmessage(i);
+                            */
+
+                           /*
                             //receive key
                             uint16_t key = recv_n_char(i,2);
                             //receive node ID from responsible node
@@ -235,62 +234,64 @@ int main(int argc, char* argv[]){
                             //receive node PORT from responsible node
                             uint16_t node_PORT = recv_n_char(i,2);
                             //hash key into binary, just hash with 2??? we have no keylength here
-                            uint16_t hashed_key = hash(key, 2); 
-
+                            uint16_t hashed_key = hash(key, sizeof key); 
+                            
                             // access intern hash table;
-                            struct intern_HT *new_elem = intern_get(hashed_key);
+                            struct intern_HT *new_elem = intern_get(reply->hash_ID);
                             send_message2client(new_elem->header, new_elem->fd, HEADERLENGTH, sizeof(new_elem->key), new_elem->key,
                              sizeof(new_elem->value), new_elem->value);
+                             */
                         }
                     }
                         //it's the new protocol!
                     else if (control > 0) {
                         if ((commands[0] >> 1) & 0b1) { // make sure it's a reply
-                            uint16_t *hash_id = recv_n_char(i, 2);
-                            uint16_t *node_id = recv_n_char(i, 2);
-                            uint32_t *node_ip = recv_n_char(i, 4);
-                            uint16_t *node_port = recv_n_char(i, 2);
 
+                            //recv intern reply message (contains the ip and port of responsible peer)
+                            struct ring_message* reply = recv_ringmessage(i);
+                            //get file descriptor of the responsible peer
+                            int rpeer_fd = get_fd(reply->node_IP, reply->node_PORT);
+                            //get client's request from intern hashtable
+                            struct intern_HT* clients_request = intern_get(reply->hash_ID);
+                            //send client's request to responsible peer
+                            send_n_char(rpeer_fd, clients_request->header, HEADERLENGTH);
+                            send_n_char(rpeer_fd, clients_request->key, sizeof clients_request->key);
+                            if(((clients_request->header[0] >> 1) & 0b1) > 0){ //send value only if set-bit is set
+                                end_n_char(rpeer_fd, clients_request->value, sizeof clients_request->value);
+
+                            }
+
+                            /*
                             int call_type;
                             if(requested_del > 0) call_type = 0;
                             else if(requested_set > 0) call_type = 1;
                             else if(requested_get > 0) call_type = 2;
-                            
-                            char *lookup_message = make_old_from_new(hash_id, call_type); //TODO
+                            */
 
-                            send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
+                            //char *lookup_message = make_old_from_new(reply->hash_ID, call_type); //TODO
+
+                            //send_toPeer(node_id, node_ip, node_port, lookup_message);//TODO
 
                         } else if ((commands[0]) & 0b1) { // make sure it's a lookup
                             // check_datarange(hash_key, self->node_ID, successor->node_ID, predecessor->node_ID) == 2 aka my succ is responsible --> reply, else forward lookup
-                            uint16_t *hash_id = recv_n_char(i, 2);
-                            uint16_t *node_id = recv_n_char(i, 2);
-                            uint32_t *node_ip = recv_n_char(i, 4);
-                            uint16_t *node_port = recv_n_char(i, 2);
+                            struct ring_message* lookup_msg = recv_ringmessage(i);
 
-                            if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 1){
+                            if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 1){
                                 //never
                                 perror("check_datarange");
                             }
-                            else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
+                            else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
                                 //next node is responsible, send responsible node to first node
-                                int peer_fd = get_fd(node_ip,node_port);
-                                send_ringmessage(peer_fd, create_reply(hash_id, self->successor));
+                                int peer_fd = get_fd(lookup_msg->node_IP,lookup_msg->node_PORT);
+                                send_ringmessage(peer_fd, create_reply(lookup_msg->hash_ID, self->successor));
 
                             }
-                            else if(check_datarange(hash_id,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
+                            else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
                                 //send lookup to next node
+                                //get fd of my successor
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
-                                
-                                struct peer* first = malloc(sizeof(struct peer));
-                                first->node_ID = node_id;
-                                first->node_IP = node_ip;
-                                first->node_PORT = node_port;
-                                
-                                send_ringmessage(peer_fd, create_lookup(hash_id, first));
-
-                                free(first);
-                              
-                
+                                //send my successor the same lookup-message I have received
+                                send_ringmessage(peer_fd, lookup_msg);                              
 
                             } 
                         } 
