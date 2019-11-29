@@ -1,12 +1,14 @@
-- aufruf speichern (get/set/del): global in call_type
-- welche art von protokoll: control
-- struct protokoll fuer die lookups: check
+- aufruf speichern (get/set/del): global in call_type CHECK
+- welche art von protokoll: control CHECK
+- struct protokoll fuer die lookups: CHECK
 - if(key < 2 bytes): key mit null bytes auffuellenn in big-endian
-    einfach vorher den key-buffer mit '\0' memseten? reicht das?
-- eine Liste/Hashtable fuer <key, value> Paare fuer die ZUORDNUNG des Clients (also Zuordnung des Keys zum Socket file)
-- Vorgänger-Nachfolger: global speichern?
-- m: Anzahl der Bits des Wertebereiches...
+    einfach vorher den key-buffer mit '\0' memseten? reicht das? CHECK
+- eine Liste/Hashtable fuer <key, value> Paare fuer die ZUORDNUNG des Clients (also Zuordnung des Keys zum Socket file) CHECK
+- Vorgänger-Nachfolger: global speichern? CHECK
+- m: Anzahl der Bits des Wertebereiches... CHECK
 - abfangen, wenn am ersten wieder ein lookup ankommt, dann ist man zuweit gegangen
+- hash funktionen 
+
 
 
 Max. Laenge fuer key: 1111111111111111 bzw. 65535 
