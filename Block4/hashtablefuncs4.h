@@ -5,6 +5,7 @@
 #ifndef BLOCK4_HASHTABLEFUNCS4_H
 #define BLOCK4_HASHTABLEFUNCS4_H
 
+#include <arpa/inet.h>
 #include "structs.h"
 #include "uthash.h"
 

@@ -6,10 +6,19 @@
 #define BLOCK4_COMMUNICATIONFUNCS4_H
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <errno.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <sudo_plugin.h>
 #include "hashtablefuncs4.h"
 
 char* recv_n_char(int new_fd, int size);
-void send_n_char(int new_fd, char* arr, int size);
+void send_n_char(int new_fd, void* arr, int size);
 void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _keylen, char* _key, uint32_t _valuelen, char* _value);
 int check_datarange(uint16_t hash_key, uint16_t self_ID, uint16_t successor_ID, uint16_t predecessor_ID);
 struct ring_message* create_lookup(uint16_t hashed_key, struct peer* p);
@@ -18,6 +27,22 @@ void sendringmessage(int new_fd, struct ring_message* msg);
 void recv_parts_of_rm(int new_fd, void* ptr, int size);
 struct ring_message* recv_ringmessage(int new_fd);
 int get_fd(uint16_t node_ip, uint16_t node_port);
+
+uint32_t ip_to_uint(char *ip_addr) {
+    struct in_addr ip;
+    if (inet_aton(ip_addr, &ip) == 0)
+        perror("converting ip to int");
+    return ip.s_addr;
+}
+
+char* ip_to_str(uint32_t ip){
+    struct in_addr ips;
+    ips.s_addr = ip;
+    char* ip_str = inet_ntoa(ips);
+    if (ip_str == NULL)
+        perror("converting ip to string");
+    return  ip_str;
+}
 
 char* recv_n_char(int new_fd, int size){
     //alloc buffer
@@ -44,7 +69,7 @@ char* recv_n_char(int new_fd, int size){
     return recv_buf;
 }
 
-void send_n_char(int new_fd, char* arr, int size){
+void send_n_char(int new_fd, void* arr, int size){
 
     char* ptr = arr;
     while(size > 0){
@@ -143,7 +168,7 @@ struct ring_message* create_reply(uint16_t hashed_key, struct peer* self){ //hie
 
 void send_ringmessage(int new_fd, struct ring_message* msg){
     send_n_char(new_fd, msg->commands, sizeof(msg->commands));
-    send_n_char(new_fd, msg->hash_ID, sizeof(uint16_t));
+    send_n_char(new_fd, &msg->hash_ID, sizeof(uint16_t));
     send_n_char(new_fd, &msg->node_ID, sizeof(uint16_t));
     send_n_char(new_fd, &msg->node_IP, sizeof(uint32_t));
     send_n_char(new_fd, &msg->node_PORT, sizeof(uint16_t));
@@ -174,7 +199,7 @@ struct ring_message* recv_ringmessage(int new_fd){
     recv_parts_of_rm(new_fd, &msg->node_ID, sizeof(uint16_t));
     recv_parts_of_rm(new_fd, &msg->node_IP, sizeof(uint32_t));
     recv_parts_of_rm(new_fd, &msg->node_PORT, sizeof(uint16_t));
-    
+
     return msg;
 }
 
@@ -189,7 +214,11 @@ int get_fd(uint16_t node_ip, uint16_t node_port){
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo((char*) node_ip, (char*) node_port, &hints, &servinfo)) != 0) {
+    char* nodeIP = ip_to_str(node_ip);
+    char* nodePORT = malloc(sizeof(uint16_t));
+    sprintf(nodePORT, "%d", node_port);
+
+    if ((rv = getaddrinfo(nodeIP, nodePORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
