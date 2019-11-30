@@ -39,7 +39,9 @@ int main(int argc, char* argv[]){
 
     struct addrinfo hints, *ai, *p;
 
-    struct peer* self;
+    struct peer* self = malloc(sizeof(struct peer));
+    self->predecessor = malloc(sizeof(struct peer));
+    self->successor = malloc(sizeof(struct peer));
 
     self->node_ID = atoi(argv[1]);
     self->node_IP = ip_to_uint(argv[2]); //converts a string in IPv4 numbers-and-dots notation host byte order
