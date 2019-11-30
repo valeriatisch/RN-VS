@@ -46,7 +46,6 @@ int main(int argc, char* argv[]){
     self->node_ID = atoi(argv[1]);
     self->node_IP = ip_to_uint(argv[2]); //converts a string in IPv4 numbers-and-dots notation host byte order
     self->node_PORT = atoi(argv[3]);
-    // I don't know yet if we're gonna need all this crap
     self->predecessor->node_ID = atoi(argv[4]);
     self->predecessor->node_IP = ip_to_uint(argv[5]);
     self->predecessor->node_PORT = atoi(argv[6]);
@@ -63,7 +62,7 @@ int main(int argc, char* argv[]){
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
     char* IP = ip_to_str(self->node_IP);
-    char* PORT = malloc(sizeof(uint16_t));
+    char PORT[sizeof(uint16_t)];
     sprintf(PORT, "%d", self->node_PORT);
     if ((rv = getaddrinfo(IP, PORT, &hints, &ai)) != 0) {
         fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
