@@ -57,9 +57,12 @@ void set(char* new_key, uint16_t key_length, char* value, uint32_t value_length)
 }
 
 uint16_t hash(char* key, uint16_t key_len){
-    uint8_t* rv = malloc(2*sizeof(uint8_t));
-    memset(rv, '\0', 2*sizeof(uint8_t));
-    memcpy(rv, key, key_len);
+    uint8_t* rv = (uint8_t*) malloc(sizeof(uint8_t) * 2);
+    memset(rv, '\0', 2 * sizeof(rv[0]));
+    for(int i = 0; i < 2; i++){
+        rv[i] = key[i];
+        //memcpy(&rv[i], &key[i], 1);
+    }
     uint16_t hashed_key = (rv[0] << 8) | rv[1];
     return hashed_key;
 }
@@ -86,9 +89,11 @@ void intern_set(struct intern_HT* s){
     q->value = malloc(sizeof (s->value));
     q->hashed_key = s->hashed_key;
     q->fd = s->fd;
-    memcpy(q->header, s->header, sizeof(s->header));
-    memcpy(q->key, s->key, sizeof s->key);
-    memcpy(q->value, s->value, sizeof s->value);
+    memcpy(&q->header, &s->header, sizeof(s->header));
+    memcpy(&q->key, &s->key, sizeof s->key);
+    if(s->value != NULL){
+        memcpy(&q->value, &s->value, sizeof s->value);
+    }    
     HASH_ADD_INT(intern_table, hashed_key, q);
 }
 

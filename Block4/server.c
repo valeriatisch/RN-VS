@@ -1,11 +1,16 @@
-/*
-** selectserver.c -- a cheezy multiperson chat server
-*/
-
 #include "communicationfuncs4.h"
 #include "hashtablefuncs4.h"
 
 #define HEADERLENGTH 7
+
+void sigchld_handler(int s){
+// waitpid() might overwrite errno, so we save and restore it:
+    int saved_errno = errno;
+
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+
+    errno = saved_errno;
+}
 
 void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
@@ -29,11 +34,13 @@ int main(int argc, char* argv[]){
     int newfd;        // newly accept()ed socket descriptor
     struct sockaddr_storage remoteaddr; // client address
     socklen_t addrlen;
+    struct sigaction sa;
 
     char buf[256];    // buffer for client data
     int nbytes;
 
     char remoteIP[INET6_ADDRSTRLEN];
+    
     int yes=1;        // for setsockopt() SO_REUSEADDR, below
     int i, j, rv;
 
@@ -93,8 +100,6 @@ int main(int argc, char* argv[]){
         exit(2);
     }
 
-
-
     freeaddrinfo(ai); // all done with this
 
     // listen
@@ -109,85 +114,68 @@ int main(int argc, char* argv[]){
     // keep track of the biggest file descriptor
     fdmax = listener; // so far, it's this one
 
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
+
     // main loop
     for(;;) {
-        read_fds = master; // copy it
-        if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
-            perror("select");
-            exit(4);
+        addrlen = sizeof(remoteaddr);
+        i = accept(listener,(struct sockaddr * )&remoteaddr, &addrlen);
+        if (i == -1) {
+            perror("accept");
+            continue;
         }
 
-        // run through the existing connections looking for data to read
-        for (i = 0; i <= fdmax; i++) {
-            if (FD_ISSET(i, &read_fds)) { // we got one!!
-                if (i == listener) {
-                    // handle new connections
-                    addrlen = sizeof remoteaddr;
-                    newfd = accept(listener,
-                                   (struct sockaddr *) &remoteaddr,
-                                   &addrlen);
+        inet_ntop(remoteaddr.ss_family,get_in_addr((struct sockaddr *)&remoteaddr),remoteIP, sizeof remoteIP);
+        printf("server: got connection from %s\n", remoteIP);
 
-                    if (newfd == -1) {
-                        perror("accept");
-                    } else {
-                        FD_SET(newfd, &master); // add to master set
-                        if (newfd > fdmax) {    // keep track of the max
-                            fdmax = newfd;
-                        }
-                        printf("selectserver: new connection from %s on "
-                               "socket %d\n",
-                               inet_ntop(remoteaddr.ss_family,
-                                         get_in_addr((struct sockaddr *) &remoteaddr),
-                                         remoteIP, INET6_ADDRSTRLEN),
-                               newfd);
-                    }
-                } else {
+        if(!fork()){
 
-                    /*
-                     * TODO: this is where the fun begins *imagine an Anakin-Skywalker-GIF!*
-                     */
-                    char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
-                    int control = (commands[0] >> 7) & 0b1; //check the first bit
+            char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
+            int control = (commands[0] >> 7) & 0b1; //check the first bit
 
-                    int rpeer_fd = 0;
+            int rpeer_fd = 0;
 
-                    // it's the old protocol
-                    if (control <= 0) {
+            // it's the old protocol
+            if (control <= 0) {
 
-                        //https://stackoverflow.com/questions/9746866/how-to-concat-two-char-in-c
-                        //receive complete header
-                        printf("test0\n");
-                        char* header = malloc(HEADERLENGTH);
-                        //strcpy(header,commands);
-                        printf("hi1\n");
-                        char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
-                        printf("hi2\n");
-                        //printf("%d\n", rest_header[1]);
-                        //header = strcat(header, rest_header);
-                        memcpy(header, commands, 1);
-                        memcpy(header+1, rest_header, HEADERLENGTH - 1);
-                        //receive key
-                        uint16_t keylen = (header[1] << 8) | header[2];
-                        printf("hi3\n");
-                        char *key = recv_n_char(i, keylen);
-                        printf("hi4\n");
+            //https://stackoverflow.com/questions/9746866/how-to-concat-two-char-in-c
+            //receive complete header
+            printf("test0\n");
+            char* header = malloc(HEADERLENGTH);
+            //strcpy(header,commands);
+            printf("hi1\n");
+            char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
+            printf("hi2\n");
+            //printf("%d\n", rest_header[1]);
+            //header = strcat(header, rest_header);
+            memcpy(header, commands, 1);
+            memcpy(header+1, rest_header, HEADERLENGTH - 1);
+            //receive key
+            uint16_t keylen = (header[1] << 8) | header[2];
+            printf("hi3\n");
+            char *key = recv_n_char(i, keylen);
+            printf("hi4\n");
 
-                        //get call type from header get/set/del
-                        int requested_del = header[0] & 0b1;
-                        int requested_set = (header[0] >> 1) & 0b1;
-                        int requested_get = (header[0] >> 2) & 0b1;
+            //get call type from header get/set/del
+            int requested_del = header[0] & 0b1;
+            int requested_set = (header[0] >> 1) & 0b1;
+            int requested_get = (header[0] >> 2) & 0b1;
+            //hash key into binary
+            uint16_t hashed_key = hash(key, keylen);
 
-                        //hash key into binary
-                        uint16_t hashed_key = hash(key, keylen);
-
-                        int ack = (commands[0] >> 3) & 0b1;
-
-                        // ack bit not set, therefore request from client
-                        if (ack <= 0) {
-                            printf("test1\n");
-                            struct intern_HT* new_elem = malloc(sizeof(struct intern_HT));
-                            new_elem->hashed_key = hashed_key;
-                            new_elem->fd = i;
+            int ack = (commands[0] >> 3) & 0b1;
+            // ack bit not set, therefore request from client
+            if (ack <= 0) {
+                printf("test1\n");
+                struct intern_HT* new_elem = malloc(sizeof(struct intern_HT));
+                new_elem->hashed_key = hashed_key;
+                new_elem->fd = i;
                             new_elem->header = malloc(HEADERLENGTH);
                             memcpy(new_elem->header, header, HEADERLENGTH);
                             new_elem->key = malloc(keylen); //eventuell +1
@@ -216,8 +204,20 @@ int main(int argc, char* argv[]){
                             if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {
                                 printf("test1.5\n");
                                 printf("m2c\n");
+
+                                struct sockaddr_in peer;
+                                int len = sizeof(struct sockaddr);
+                                if(getpeername(i, &peer, &len) == -1) {
+                                    perror("failure gerpeername");
+                                }
+                                printf("Peer's IP address is: %s\n", inet_ntoa(peer.sin_addr));
+                                printf("Peer's port is: %d\n", (int) peer.sin_port);
+
+
                                 send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value); 
                                 printf("m2c...\n");
+
+                                
                                 close(i);
                                 FD_CLR(i, &master);
                             }
@@ -229,6 +229,14 @@ int main(int argc, char* argv[]){
 
                                  //get file decsriptor of my successor, who's responsible
                                  int peer_fd = get_fd(self->successor->node_IP, test_port);
+
+                                struct sockaddr_in peer;
+                                int len = sizeof(struct sockaddr);
+                                if(getpeername(i, &peer, &len) == -1) {
+                                    perror("failure gerpeername");
+                                }
+                                printf("Peer's IP address is: %s\n", inet_ntoa(peer.sin_addr));
+                                printf("Peer's port is: %d\n", peer.sin_port);
 
                                  //send him cliet's request
                                  if(requested_set > 0) {
@@ -329,10 +337,12 @@ int main(int argc, char* argv[]){
                             }
                         }
                     }
-                }// END handle data from client
-            }// END got new incoming connection
-        }// END looping through file descriptors
+                }
+                // END handle data from client
+            // END got new incoming connection
+        // END looping through file descriptors
     }// END for(;;)--and you thought it would never end!
     return 0;
 
 }
+

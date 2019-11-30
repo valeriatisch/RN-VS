@@ -15,7 +15,7 @@ Max. Laenge fuer key: 1111111111111111 bzw. 65535
 Datenbereich fuer 1. peer: Wenn key zwieschen 0 - 16383 liegt, ist der 1. Server verantwortlich
 Datenbereich fuer 2. peer: 16384 - 32768
 Datenbereich fuer 3. peer: 32769 - 49151
-Datenbereich fuer 4. peer: 49152 - 65535
+Datenbereich fuer 4. peer: 49152 - 65535    
 
 
 FUNKTIONEN:
