@@ -26,7 +26,7 @@ struct ring_message* create_reply(uint16_t hashed_key, struct peer* successor);
 void sendringmessage(int new_fd, struct ring_message* msg);
 void recv_parts_of_rm(int new_fd, void* ptr, int size);
 struct ring_message* recv_ringmessage(int new_fd);
-int get_fd(uint32_t node_ip, uint16_t node_port);
+int get_fd(uint32_t node_ip, char* node_port);
 uint32_t ip_to_uint(char *ip_addr);
 char* ip_to_str(uint32_t ip);
 
@@ -112,7 +112,6 @@ void send_message2client(char* header, int  new_fd, int headerlength, uint16_t _
         header[0] |= 0b1000;
         //no element found
         if(result == NULL){
-            //send header without ack
             send_n_char(new_fd, header, headerlength);
         }
             //element found
@@ -205,7 +204,7 @@ struct ring_message* recv_ringmessage(int new_fd){
     return msg;
 }
 
-int get_fd(uint32_t node_ip, uint16_t node_port){
+int get_fd(uint32_t node_ip, char* node_port){
     int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
     struct addrinfo hints, *servinfo, *p;
     int yes=1;
@@ -217,14 +216,14 @@ int get_fd(uint32_t node_ip, uint16_t node_port){
     hints.ai_flags = AI_PASSIVE; // use my IP
 
     char* nodeIP = ip_to_str(node_ip);
-    char* nodePORT = malloc(sizeof(uint16_t)+1);
-    sprintf(nodePORT, "%d", node_port);
+    //char* nodePORT = malloc(sizeof(uint16_t)+1);
+    //sprintf(nodePORT, "%d", node_port);
 
-    if ((rv = getaddrinfo(nodeIP, nodePORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(nodeIP, node_port, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
-    
+
     //https://stackoverflow.com/questions/27014955/socket-connect-vs-bind
     // loop through all the results and bind to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
