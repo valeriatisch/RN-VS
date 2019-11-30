@@ -218,8 +218,8 @@ int main(int argc, char* argv[]){
                                 printf("m2c\n");
                                 send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value); 
                                 printf("m2c...\n");
-                                close(i);
-                                FD_CLR(i, &master);
+                                //close(i);
+                                //FD_CLR(i, &master);
                             }
                             //my successor is responsible
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
