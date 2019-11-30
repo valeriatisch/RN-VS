@@ -9,6 +9,9 @@
 #include "structs.h"
 #include "uthash.h"
 
+#define HEADERLENGTH 7
+
+
 struct HASH_elem *table = NULL;
 struct intern_HT *intern_table = NULL;
 
@@ -53,12 +56,12 @@ void set(char* new_key, uint16_t key_length, char* value, uint32_t value_length)
     memcpy(q->value, value, value_length);
 }
 
-//https://stackoverflow.com/questions/36896420/casting-uint8-t-array-into-uint16-t-value-in-c
 uint16_t hash(char* key, uint16_t key_len){
-    if(key_len == 1){
-        return (uint16_t) ((uint8_t) key[0]);
-    }
-    return ntohs(*(uint16_t*)key);
+    uint8_t* rv = malloc(2*sizeof(uint8_t));
+    memset(rv, '\0', 2*sizeof(uint8_t));
+    memcpy(rv, key, key_len);
+    uint16_t hashed_key = (rv[0] << 8) | rv[1];
+    return hashed_key;
 }
 
 void intern_delete(uint16_t hashed_key){
@@ -78,6 +81,9 @@ void intern_set(struct intern_HT* s){
         intern_delete(q->hashed_key);
     }
     q = (struct intern_HT*) malloc(sizeof(struct intern_HT));
+    q->header = malloc(HEADERLENGTH);
+    q->key = malloc(sizeof (s->key));
+    q->value = malloc(sizeof (s->value));
     q->hashed_key = s->hashed_key;
     q->fd = s->fd;
     memcpy(q->header, s->header, sizeof(s->header));

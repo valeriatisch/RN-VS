@@ -145,19 +145,30 @@ int main(int argc, char* argv[]){
                     /*
                      * TODO: this is where the fun begins *imagine an Anakin-Skywalker-GIF!*
                      */
-                    char *commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
+                    char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
                     int control = (commands[0] >> 7) & 0b1; //check the first bit
 
-                    //so it's the old protocol
+                    int rpeer_fd = 0;
+
+                    // it's the old protocol
                     if (control <= 0) {
 
+                        //https://stackoverflow.com/questions/9746866/how-to-concat-two-char-in-c
                         //receive complete header
+                        char* header = malloc(HEADERLENGTH);
+                        //strcpy(header,commands);
+                        printf("hi1\n");
                         char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
-                        char *header = strcat(commands, rest_header);
-
+                        printf("hi2\n");
+                        //printf("%d\n", rest_header[1]);
+                        //header = strcat(header, rest_header);
+                        memcpy(header, commands, 1);
+                        memcpy(header+1, rest_header, HEADERLENGTH - 1);
                         //receive key
                         uint16_t keylen = (header[1] << 8) | header[2];
+                        printf("hi3\n");
                         char *key = recv_n_char(i, keylen);
+                        printf("hi4\n");
 
                         //get call type from header get/set/del
                         int requested_del = header[0] & 0b1;
@@ -175,8 +186,10 @@ int main(int argc, char* argv[]){
                             struct intern_HT* new_elem = malloc(sizeof(struct intern_HT));
                             new_elem->hashed_key = hashed_key;
                             new_elem->fd = i;
-                            memcpy(new_elem->header, header, sizeof header);
-                            memcpy(new_elem->key, key, sizeof key);
+                            new_elem->header = malloc(HEADERLENGTH);
+                            memcpy(new_elem->header, header, HEADERLENGTH);
+                            new_elem->key = malloc(keylen);
+                            memcpy(new_elem->key, key, keylen);
 
                             //get value-length and receive value
                             uint32_t valuelen = 0;
@@ -186,13 +199,20 @@ int main(int argc, char* argv[]){
                                            | ((header[4] & 0xFF) << 16)
                                            | ((header[5] & 0xFF) << 8)
                                            | (header[6] & 0xFF);
+                                printf("hi5\n");
                                 value = recv_n_char(i, valuelen);
+                                printf("hi6\n");
+                                new_elem->value = malloc(sizeof value);
                                 memcpy(new_elem->value, value, sizeof value);
                             }
-
+                            intern_set(new_elem);
                             //I am responsible
                             if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {
+                                printf("m2c\n");
                                 send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value);
+                                printf("m2c...\n");
+                                close(i);
+                                FD_CLR(i, &master);
                             }
                                 //my successor is responsible
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
@@ -201,6 +221,7 @@ int main(int argc, char* argv[]){
 
                                 //send him cliet's request
                                 if(requested_set > 0) {
+                                    printf("keylen:%d\nvaluelen:%d\n",keylen,valuelen);
                                     send_n_char(peer_fd,header,HEADERLENGTH);
                                     send_n_char(peer_fd,key,keylen);
                                     send_n_char(peer_fd,value,valuelen);
@@ -209,14 +230,20 @@ int main(int argc, char* argv[]){
                                     send_n_char(peer_fd,header,HEADERLENGTH);
                                     send_n_char(peer_fd,key,keylen);
                                 }
+                                close(peer_fd);
                             }
                                 //lookup for next peer
                             else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 3) {
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
                                 send_ringmessage(peer_fd, create_lookup(hashed_key, self));
+                                close(peer_fd);
                             }
                         } else if (ack > 0) { //it's a reply(old-protocol) from another peer -> send to client
 
+                            close(rpeer_fd);
+                            close(i);
+                            FD_CLR(i, &master);
+                            
                             struct intern_HT* new_elem = intern_get(hashed_key);
                             int fd =new_elem->fd;
 
@@ -235,7 +262,7 @@ int main(int argc, char* argv[]){
                             }
                         }
                     }
-                        //it's the new protocol!
+                    //it's the new protocol!
                     else if (control > 0) {
 
                         // make sure it's a reply
@@ -245,7 +272,7 @@ int main(int argc, char* argv[]){
                             struct ring_message* reply = recv_ringmessage(i);
 
                             //get file descriptor of the responsible peer
-                            int rpeer_fd = get_fd(reply->node_IP, reply->node_PORT);
+                            rpeer_fd = get_fd(reply->node_IP, reply->node_PORT);
 
                             //get client's request from intern hashtable
                             struct intern_HT* clients_request = intern_get(reply->hash_ID);
@@ -258,7 +285,6 @@ int main(int argc, char* argv[]){
                             if(((clients_request->header[0] >> 1) & 0b1) > 0){
                                 send_n_char(rpeer_fd, clients_request->value, sizeof clients_request->value);
                             }
-
                             //make sure it's a lookup
                         } else if ((commands[0]) & 0b1) {
                             struct ring_message* lookup_msg = recv_ringmessage(i);
@@ -267,17 +293,19 @@ int main(int argc, char* argv[]){
                             if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 1){
                                 perror("check_datarange");
                             }
-                                //next node is responsible, send responsible node to first node
+                            //next node is responsible, send responsible node to first node
                             else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
                                 int peer_fd = get_fd(lookup_msg->node_IP,lookup_msg->node_PORT);
                                 send_ringmessage(peer_fd, create_reply(lookup_msg->hash_ID, self->successor));
+                                close(peer_fd);
                             }
-                                //send lookup to next node
+                            //send lookup to next node
                             else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
 
                                 //get fd of my successor and send the lookup
                                 int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
                                 send_ringmessage(peer_fd, lookup_msg);
+                                close(peer_fd);
                             }
                         }
                     }
