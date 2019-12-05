@@ -1,3 +1,0 @@
-/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/CMakeFiles/peer.dir
-/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/CMakeFiles/edit_cache.dir
