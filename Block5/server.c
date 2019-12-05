@@ -235,10 +235,36 @@ serverArgs *parseArguments(char *argv[]) {
     return ret;
 }
 
+serverArgs* parseArguments_Block5(int argc, char* argv[]){
+    serverArgs *ret = calloc(1, sizeof(serverArgs));
+
+    if(argc == 3 || argc == 4){
+        ret->ownIP = argv[1];
+        ret->ownPort = argv[2];
+        ret->ownID = 0;
+        ret->ownIpAddr = 0;
+        if(argc == 4){
+            ret->ownID = atoi(argv[3]);
+        }
+        //TODO: start ring with me
+    }
+    
+    if(argc == 6){
+        ret->ownIP = argv[1];
+        ret->ownPort = argv[2];
+        ret->ownID = atoi(argv[3]);
+        ret->ownIpAddr = 0;
+        ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
+        ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
+        //TODO: send join-msg to peer 
+    }
+}
+
 int main(int argc, char *argv[]) {
     // Parse arguments
-    INVARIANT(argc == 10, -1, "Command line args invalid");
-    serverArgs *args = parseArguments(argv);
+    //INVARIANT(argc == 10, -1, "Command line args invalid");
+    //serverArgs *args = parseArguments(argv);
+    serverArgs *args = parseArguments_Block5(argc, argc);
 
-    return startServer(args);
+    //return startServer(args); TODO: muss umgeschrieben werden
 }
