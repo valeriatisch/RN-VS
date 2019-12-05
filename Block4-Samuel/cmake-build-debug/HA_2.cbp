@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="HA_2"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="peer">
+				<Option output="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/peer" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/valeria/CLionProjects/Block4-Samuel/src"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/7/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 peer"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="peer/fast">
+				<Option output="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/peer" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/valeria/CLionProjects/Block4-Samuel/src"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/7/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 peer/fast"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/valeria/CLionProjects/Block4-Samuel/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/peer.c">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/protocol.c">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/protocol.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/utarray.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/uthash.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/utlist.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/utringbuffer.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/utstack.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/src/utstring.h">
+			<Option target="peer"/>
+		</Unit>
+		<Unit filename="/home/valeria/CLionProjects/Block4-Samuel/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

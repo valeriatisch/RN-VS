@@ -1,0 +1,47 @@
+if argc < 2 OR argc > 6
+    FAIL
+
+if argc == 2
+    start ring with peer ID = 0
+if argc == 3
+    start ring with peer ID = argv[3]
+if argc == 6
+    send join-msg
+        build joinmessage: set control & join-bit + my_id, my_ip & my_port (no hash_id yet)
+        build connection to next peer
+        get host information (getaddrinfo)
+        create new socket1 with data from getaddringo
+        connect() to socket1
+        send joinmessage to socket1
+        close socket1
+
+
+IF recv join:
+    IF my_id < id_of_my_pre
+        IF recvd_id > my_id && recvd_id > id_of_my_pre
+            join1
+        IF recvd_id < my_id && recvd_id < id_of_my_pre
+            join1
+        ELSE send join-msg forward
+    ELSE 
+        recvd_id < my_id && recvd_id > id_of_my_pre
+            join1
+        ELSE send join-msg forward
+
+IF recv notify:
+    IF self->ID == recvd->ID
+        do_nothing
+    ELSE
+        self-> != recvd->ID
+            self->successor = recvd->ID
+
+IF recv stabilize:
+    IF self->predecessor == recvd->ID       
+        do_nothing
+    ELSE   
+        self->predecessor == recvd->ID
+
+
+join1:
+    self->predecessor = 1
+    send notify to 1
