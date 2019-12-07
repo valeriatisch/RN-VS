@@ -12,14 +12,12 @@ CMakeFiles/server.dir/server.c.o: ../include/uthash.h
 CMakeFiles/server.dir/server.c.o: ../server.c
 
 CMakeFiles/server.dir/src/clientStore.c.o: ../include/clientStore.h
-CMakeFiles/server.dir/src/clientStore.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/clientStore.c.o: ../include/message.h
 CMakeFiles/server.dir/src/clientStore.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/clientStore.c.o: ../include/uthash.h
 CMakeFiles/server.dir/src/clientStore.c.o: ../src/clientStore.c
 
 CMakeFiles/server.dir/src/hash.c.o: ../include/hash.h
-CMakeFiles/server.dir/src/hash.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/hash.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/hash.c.o: ../include/uthash.h
 CMakeFiles/server.dir/src/hash.c.o: ../src/hash.c
@@ -28,7 +26,6 @@ CMakeFiles/server.dir/src/lookup.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/lookup.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/lookup.c.o: ../src/lookup.c
 
-CMakeFiles/server.dir/src/message.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/message.c.o: ../include/message.h
 CMakeFiles/server.dir/src/message.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/message.c.o: ../src/message.c
@@ -39,14 +36,12 @@ CMakeFiles/server.dir/src/packet.c.o: ../include/packet.h
 CMakeFiles/server.dir/src/packet.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/packet.c.o: ../src/packet.c
 
-CMakeFiles/server.dir/src/peerClientStore.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/peerClientStore.c.o: ../include/message.h
 CMakeFiles/server.dir/src/peerClientStore.c.o: ../include/peerClientStore.h
 CMakeFiles/server.dir/src/peerClientStore.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/peerClientStore.c.o: ../include/uthash.h
 CMakeFiles/server.dir/src/peerClientStore.c.o: ../src/peerClientStore.c
 
-CMakeFiles/server.dir/src/sockUtils.c.o: ../include/lookup.h
 CMakeFiles/server.dir/src/sockUtils.c.o: ../include/sockUtils.h
 CMakeFiles/server.dir/src/sockUtils.c.o: ../src/sockUtils.c
 

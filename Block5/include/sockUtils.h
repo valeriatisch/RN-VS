@@ -2,7 +2,6 @@
 #define BLOCK32_SOCKUTILS_H
 
 #include <stdint.h>
-#include "../include/lookup.h"
 
 #define DEBUG
 
@@ -72,8 +71,8 @@ typedef struct _buffer {
     uint32_t maxLength;
 } buffer;
 
-void start_stabilize(serverArgs* args);
-void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
+//void start_stabilize(serverArgs* args);
+//void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
 buffer* createBuffer(uint32_t length);
 buffer* createBufferFrom(uint32_t length, void* existingBuffer);
 void freeBuffer(buffer *buff);

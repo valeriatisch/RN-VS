@@ -41,8 +41,6 @@ uthash.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
 stdint.h
 -
-../include/lookup.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
 
 /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
 string.h
@@ -83,84 +81,4 @@ pthread.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
 ./include/peerClientStore.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/peerClientStore.h
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/clientStore.c
-stdio.h
--
-../include/sockUtils.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
-../include/clientStore.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/hash.c
-../include/hash.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
-../include/sockUtils.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
-stdio.h
--
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/lookup.c
-../include/sockUtils.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
-../include/lookup.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
-string.h
--
-stdlib.h
--
-netdb.h
--
-stdio.h
--
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/message.c
-../include/message.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/message.h
-stdlib.h
--
-stdio.h
--
-netinet/in.h
--
-string.h
--
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/packet.c
-sys/socket.h
--
-stdlib.h
--
-stdio.h
--
-stdint.h
--
-../include/packet.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/peerClientStore.c
-../include/sockUtils.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
-../include/peerClientStore.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/peerClientStore.h
-stdio.h
--
-
-/home/valeria/Visual Studio/RN-VS/Block5/src/sockUtils.c
-sys/socket.h
--
-stdio.h
--
-netdb.h
--
-string.h
--
-unistd.h
--
-stdlib.h
-/home/valeria/Visual Studio/RN-VS/Block5/src/stdlib.h
-../include/sockUtils.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
-../include/lookup.h
-/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
 

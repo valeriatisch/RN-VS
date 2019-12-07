@@ -6,33 +6,6 @@
 #include "stdlib.h"
 
 #include "../include/sockUtils.h"
-#include "../include/lookup.h"
-
-void start_stabilize(serverArgs* args){
-    lookup* stabilize_msg = createLookup( 0, 0, 1, 0, 0, 0, args->ownID, args->ownIP, args->ownPort);
-    while(1){
-        if(args->nextIP != NULL){
-            stabilize(stabilize_msg, args->nextIP, args->nextPort);
-            break;
-        }
-        sleep(2);
-    }
-}
-
-void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort){
-    sleep(2);
-    // IP String zu 32bit Zahl konvertieren
-    struct sockaddr_in sa;
-    inet_pton(AF_INET, nextIP, (&sa.sin_addr));
-                        
-    int peerSock = setupClientWithAddr(nextIP, nextPort);
-    //send notify to joined peer
-    sendLookup(peerSock, stabilize_msg);
-    free(stabilize_msg);
-    close(peerSock);
-
-    stabilze(stabilize_msg, nextIP, nextPort);
-}
 
 /**
  * Erstellt einen neuen buffer mit der maximalen Länge "maxLength"
@@ -209,7 +182,7 @@ int setupServer(char address[], char port[], uint32_t *ownIpAddr) {
     }
 
     INVARIANT(p != NULL, -1, "Server: failed to bind");
-    
+
     return socketServer;
 }
 
@@ -237,7 +210,7 @@ int setupClient(char dnsAddress[], char port[]) {
 
     //Fehler Abfang falls gar keine Adresse aus addressinfo gepasst hat
     INVARIANT(p != NULL, -1, "Client konnt nicht connecten");
-    
+
     return clientSocket;
 }
 
@@ -254,12 +227,12 @@ int setupClientWithAddr(uint32_t s_addr, uint16_t port) {
 
     int clientSocket = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
     INVARIANT(clientSocket != -1, -1, "Failed to create socket")
-
+    printf("next connect\n");
     int connectStatus = connect(clientSocket, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
     INVARIANT_CB(connectStatus != -1, -1, "Failed to connect to lookup address",{
         close(clientSocket);
     })
-
+    printf("after connecet\n");
     return clientSocket;
 }
 
