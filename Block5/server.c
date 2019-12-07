@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "./include/hash.h"
 #include "./include/lookup.h"
@@ -179,9 +180,12 @@ int startServer(serverArgs *args) {
         close(socketServer);
     });
 
+
+
     FD_SET(socketServer, &master);
     fdMax = socketServer;
 
+    //TODO: hier sendJoinMsg()
 
     for (;;) {
         read_fds = master; // Kopieren
@@ -218,6 +222,59 @@ int startServer(serverArgs *args) {
     }
 }
 
+uint32_t ip_to_uint(char *ip_addr) {
+    struct in_addr ip;
+    if (inet_aton(ip_addr, &ip) == 0)
+        perror("converting ip to int");
+    return ip.s_addr;
+}
+
+char* ip_to_str(uint32_t ip){
+    struct in_addr ips;
+    ips.s_addr = ip;
+    char* ip_str = inet_ntoa(ips);
+    if (ip_str == NULL)
+        perror("converting ip to string");
+    return  ip_str;
+}
+
+
+int sendJoinMsg(serverArgs *args) {
+
+    unsigned char join_buffy[11];
+    join_buffy[0] = 144; //set control and join bit
+    memcpy(join_buffy+3, &args->ownID, 2);
+    uint32_t ipAdr = ip_to_uint(args->ownIP);
+    memcpy(join_buffy+5, &ipAdr, 4);
+    uint16_t port = strtoul(args->ownPort, NULL, 10);
+    memcpy(join_buffy+9, &port, 2);
+
+    int fd = 0;
+    struct addrinfo *p;
+
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;     //AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    int status; // Keep track of possible errors
+
+    status = getaddrinfo(args->nextIP, args->nextPort, &hints, &p);
+    INVARIANT(status == 0, -1, "Failed to get address info")
+
+    fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+
+    if (connect(fd, p->ai_addr, p->ai_addrlen) == -1)
+    {
+        close(fd);
+        perror("connection error");
+        exit(EXIT_FAILURE);
+    }
+    send(fd, &join_buffy, 11, 0);
+    close(fd);
+}
+
 serverArgs *parseArguments(char *argv[]) {
     serverArgs *ret = calloc(1, sizeof(serverArgs));
 
@@ -248,7 +305,7 @@ serverArgs* parseArguments_Block5(int argc, char* argv[]){
         }
         //TODO: start ring with me
     }
-    
+
     if(argc == 6){
         ret->ownIP = argv[1];
         ret->ownPort = argv[2];
@@ -256,8 +313,10 @@ serverArgs* parseArguments_Block5(int argc, char* argv[]){
         ret->ownIpAddr = 0;
         ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
         ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
-        //TODO: send join-msg to peer 
+        //TODO: startServer() -> sendJoinMsg()
     }
+
+    return ret;
 }
 
 int main(int argc, char *argv[]) {
