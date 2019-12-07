@@ -56,15 +56,13 @@ typedef struct serverArgs_ {
     char* ownPort;
     uint32_t ownIpAddr;
 
-
-
     int nextID;
     char* nextIP;
     char* nextPort;
 
     int prevID;
-    //char* prevIP;
-    //uint16_t prevPort;
+    char* prevIP;
+    uint16_t prevPort;
 } serverArgs;
 
 typedef struct _buffer {
@@ -73,6 +71,8 @@ typedef struct _buffer {
     uint32_t maxLength;
 } buffer;
 
+void start_stabilize(serverArgs* args);
+void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
 buffer* createBuffer(uint32_t length);
 buffer* createBufferFrom(uint32_t length, void* existingBuffer);
 void freeBuffer(buffer *buff);
@@ -87,5 +87,6 @@ int setupClient(char dnsAddress[], char port[]);
 int setupClientWithAddr(uint32_t s_addr, uint16_t port);
 
 int checkBit(unsigned bitsequence, int n);
+
 
 #endif //BLOCK32_SOCKUTILS_

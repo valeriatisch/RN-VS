@@ -6,14 +6,11 @@
 #include <netdb.h>
 #include <stdio.h>
 
-lookup *createLookup(int isJoin, int isNotify, int isStabilize, int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort) {
+join *createJoin(int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort) {
     lookup *ret = calloc(1, sizeof(lookup));
-
-    ret->join = isJoin;
-    ret->notify = isNotify;
-    ret->stabilize = isStabilize;
     ret->reply = reply;
     ret->lookup = isLookup;
+    ret->
     ret->hashID = hashID;
     ret->nodeID = nodeID;
     ret->nodeIP = nodeIP;
@@ -27,9 +24,6 @@ buffer *encodeLookup(lookup *l) {
 
     buff[0] = buff[0] | 0b10000000; // Control bit immer auf 1
 
-    if (l->join) buff[0] = buff[0] | 0b00010000;
-    if (l->notify) buff[0] = buff[0] | 0b00001000;
-    if (l->stabilize) buff[0] = buff[0] | 0b00000100;
     if (l->reply) buff[0] = buff[0] | 0b00000010;
     if (l->lookup) buff[0] = buff[0] | 0b00000001;
 
@@ -52,10 +46,6 @@ buffer *encodeLookup(lookup *l) {
  * @return lookup
  */
 lookup *decodeLookup(uint8_t firstLine, buffer* buff) {
-    
-    int join = checkBit(firstLine, 4);
-    int notify = checkBit(firstLine, 3);
-    int stabilize = checkBit(firstLine, 2);
     int reply = checkBit(firstLine, 1);
     int lookup = checkBit(firstLine, 0);
 
@@ -71,7 +61,7 @@ lookup *decodeLookup(uint8_t firstLine, buffer* buff) {
 
     // nodeIP schon in network byte order
     // und da hashID ein bitstring ist, muss es nicht in eine bestimmte order
-    return createLookup(join, notify, stabilize, reply, lookup, hashID, ntohs(nodeID), nodeIP, ntohs(nodePort));
+    return createLookup(reply, lookup, hashID, ntohs(nodeID), nodeIP, ntohs(nodePort));
 }
 
 int sendLookup(int socket, lookup* l) {

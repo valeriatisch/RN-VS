@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 
 #include "./include/hash.h"
 #include "./include/lookup.h"
@@ -51,9 +52,83 @@ int handleHashTableRequest(int socket, message *msg) {
 
 int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax) {
     if (pkt->control) {
-        /******* Handle Lookup/Reply Request  *******/
+        /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
 
-        if (pkt->lookup->lookup) {
+        //pkt enthaelt id, ip, port vom Peer, der joinen moechte
+        //args enthaelt eigene id usw.
+
+        if(pkt->lookup->join){
+            if(args->ownID < args->prevID){
+                //join an erster stelle
+                if((pkt->lookup->nodeID > args->ownID && pkt->lookup->nodeID > args->prevID) || (pkt->lookup->nodeID < args->ownID)){
+                    //join->update pre
+                    args->prevID = pkt->lookup->nodeID;
+                    strncpy(args->prevIP, pkt->lookup->nodeIP, 4); 
+                    strncpy(args->prevPort, pkt->lookup->nodePort, 2);
+                    
+                    // IP String zu 32bit Zahl konvertieren
+                    struct sockaddr_in sa;
+                    inet_pton(AF_INET, pkt->lookup->nodeIP, (&sa.sin_addr));
+                    //create notify message
+                    lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->ownID, args->ownIP, args->ownPort);
+                    
+                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                    //send notify to joined peer
+                    sendLookup(peerSock, notify_msg);
+                    free(notify_msg);
+                    close(peerSock);
+                }
+                else {
+                    //forward join-message
+                    int peerSock = setupClient(args->nextIP, args->nextPort);
+                    sendLookup(peerSock, pkt->lookup);
+                    close(peerSock);
+                }
+            } else {
+                if(pkt->lookup->nodeID < args->ownID && pkt->lookup->nodeID > args->prevID){
+                    //join->update pre
+                    args->prevID = pkt->lookup->nodeID;
+                    strncpy(args->prevIP, pkt->lookup->nodeIP, 4); 
+                    strncpy(args->prevPort, pkt->lookup->nodePort, 2);                    
+                    
+                    // IP String zu 32bit Zahl konvertieren
+                    struct sockaddr_in sa;
+                    inet_pton(AF_INET, pkt->lookup->nodeIP, (&sa.sin_addr));
+                    //create notify message
+                    lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->ownID, args->ownIP, args->ownPort);
+                    
+                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                    //send notify to joined peer
+                    sendLookup(peerSock, notify_msg);
+                    free(notify_msg);
+                    close(peerSock);
+                }
+                else{
+                    //forward join message
+                    int peerSock = setupClient(args->nextIP, args->nextPort);
+                    sendLookup(peerSock, pkt->lookup);
+                    close(peerSock);
+                }
+                
+            }
+             
+        } else if(pkt->lookup->notify){
+            if(args->ownID != pkt->lookup->nodeID) {
+                //update successor
+                args->nextID = pkt->lookup->nodeID;
+                strncpy(args->nextIP, pkt->lookup->nodeIP, 4);
+                strncpy(args->nextPort, pkt->lookup->nodePort, 2);
+            }
+            
+        } else if(pkt->lookup->stabilize){
+            if (args->prevID != pkt->lookup->nodeID) {
+                //update predecessor
+                args->prevID = pkt->lookup->nodeID;
+                strncpy(args->prevIP, pkt->lookup->nodeIP, 4);
+                strncpy(args->prevPort, pkt->lookup->nodePort, 2);
+            }
+
+        } else if (pkt->lookup->lookup) {
             int hashDestination = checkHashID(pkt->lookup->hashID, args);
 
             switch (hashDestination) {
@@ -64,7 +139,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     struct sockaddr_in sa;
                     inet_pton(AF_INET, args->nextIP, (&sa.sin_addr));
 
-                    lookup *responseLookup = createLookup(1, 0, pkt->lookup->hashID, args->nextID, sa.sin_addr.s_addr,
+                    lookup *responseLookup = createLookup(0, 0, 0, 0, 1, pkt->lookup->hashID, args->nextID, sa.sin_addr.s_addr,
                                                           atoi(args->nextPort));
 
                     int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
@@ -155,7 +230,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                         return -1;
                     }
                     int peerSock = setupClient(args->nextIP, args->nextPort);
-                    lookup *l = createLookup(0, 1, hashID, args->ownID, args->ownIpAddr, atoi(args->ownPort));
+                    lookup *l = createLookup(0, 0, 0, 0, 1, hashID, args->ownID, args->ownIpAddr, atoi(args->ownPort));
                     sendLookup(peerSock, l);
                     free(l);
                     close(peerSock);
@@ -188,6 +263,9 @@ int startServer(int argc, serverArgs *args) {
 
     if(argc == 6)
         sendJoinMsg(args);
+
+    pthread_t th[1];
+    pthread_create(th, NULL, start_stabilize(args), NULL);
 
     for (;;) {
         read_fds = master; // Kopieren

@@ -6,6 +6,33 @@
 #include "stdlib.h"
 
 #include "../include/sockUtils.h"
+#include "../include/lookup.h"
+
+void start_stabilize(serverArgs* args){
+    lookup* stabilize_msg = createLookup( 0, 0, 1, 0, 0, 0, args->ownID, args->ownIP, args->ownPort);
+    while(1){
+        if(args->nextIP != NULL){
+            stabilize(stabilize_msg, args->nextIP, args->nextPort);
+            break;
+        }
+        sleep(2);
+    }
+}
+
+void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort){
+    sleep(2);
+    // IP String zu 32bit Zahl konvertieren
+    struct sockaddr_in sa;
+    inet_pton(AF_INET, nextIP, (&sa.sin_addr));
+                        
+    int peerSock = setupClientWithAddr(nextIP, nextPort);
+    //send notify to joined peer
+    sendLookup(peerSock, stabilize_msg);
+    free(stabilize_msg);
+    close(peerSock);
+
+    stabilze(stabilize_msg, nextIP, nextPort);
+}
 
 /**
  * Erstellt einen neuen buffer mit der maximalen Länge "maxLength"
