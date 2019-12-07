@@ -323,7 +323,7 @@ int main(int argc, char *argv[]) {
     // Parse arguments
     //INVARIANT(argc == 10, -1, "Command line args invalid");
     //serverArgs *args = parseArguments(argv);
-    serverArgs *args = parseArguments_Block5(argc, argc);
+    serverArgs *args = parseArguments_Block5(argc, argv);
 
     //return startServer(args); TODO: muss umgeschrieben werden
 }
