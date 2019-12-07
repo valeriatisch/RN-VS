@@ -1,0 +1,1 @@
+/usr/bin/cc -g  -rdynamic CMakeFiles/client.dir/client.c.o CMakeFiles/client.dir/src/sockUtils.c.o CMakeFiles/client.dir/src/message.c.o CMakeFiles/client.dir/src/lookup.c.o CMakeFiles/client.dir/src/packet.c.o  -o client 

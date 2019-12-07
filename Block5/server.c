@@ -265,7 +265,7 @@ int startServer(int argc, serverArgs *args) {
         sendJoinMsg(args);
 
     pthread_t th[1];
-    pthread_create(th, NULL, start_stabilize(args), NULL);
+    pthread_create(th, NULL, start_stabilize, NULL);
 
     for (;;) {
         read_fds = master; // Kopieren

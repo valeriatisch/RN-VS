@@ -2,6 +2,7 @@
 #define BLOCK32_SOCKUTILS_H
 
 #include <stdint.h>
+#include "../include/lookup.h"
 
 #define DEBUG
 
