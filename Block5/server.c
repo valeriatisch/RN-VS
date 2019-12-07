@@ -11,6 +11,9 @@
 #include "./include/clientStore.h"
 #include "./include/peerClientStore.h"
 
+//New functions:
+int sendJoinMsg(serverArgs *args);
+
 int handleHashTableRequest(int socket, message *msg) {
     message *responseMessage;
 
@@ -163,7 +166,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
     }
 }
 
-int startServer(serverArgs *args) {
+int startServer(int argc, serverArgs *args) {
     fd_set master;    // Die Master File Deskriptoren Liste
     fd_set read_fds;  // Temporäre File Deskriptor Liste für select()
     int fdMax;        // Die maximale Anzahl an File Deskriptoren
@@ -180,12 +183,11 @@ int startServer(serverArgs *args) {
         close(socketServer);
     });
 
-
-
     FD_SET(socketServer, &master);
     fdMax = socketServer;
 
-    //TODO: hier sendJoinMsg()
+    if(argc == 6)
+        sendJoinMsg(args);
 
     for (;;) {
         read_fds = master; // Kopieren
@@ -313,7 +315,6 @@ serverArgs* parseArguments_Block5(int argc, char* argv[]){
         ret->ownIpAddr = 0;
         ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
         ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
-        //TODO: startServer() -> sendJoinMsg()
     }
 
     return ret;
@@ -325,5 +326,5 @@ int main(int argc, char *argv[]) {
     //serverArgs *args = parseArguments(argv);
     serverArgs *args = parseArguments_Block5(argc, argv);
 
-    //return startServer(args); TODO: muss umgeschrieben werden
+    return startServer(argc, args); //TODO: muss umgeschrieben werden
 }
