@@ -182,7 +182,7 @@ int setupServer(char address[], char port[], uint32_t *ownIpAddr) {
     }
 
     INVARIANT(p != NULL, -1, "Server: failed to bind");
-    
+
     return socketServer;
 }
 
@@ -210,7 +210,7 @@ int setupClient(char dnsAddress[], char port[]) {
 
     //Fehler Abfang falls gar keine Adresse aus addressinfo gepasst hat
     INVARIANT(p != NULL, -1, "Client konnt nicht connecten");
-    
+
     return clientSocket;
 }
 
@@ -227,12 +227,12 @@ int setupClientWithAddr(uint32_t s_addr, uint16_t port) {
 
     int clientSocket = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
     INVARIANT(clientSocket != -1, -1, "Failed to create socket")
-
+    printf("next connect\n");
     int connectStatus = connect(clientSocket, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
     INVARIANT_CB(connectStatus != -1, -1, "Failed to connect to lookup address",{
         close(clientSocket);
     })
-
+    printf("after connecet\n");
     return clientSocket;
 }
 

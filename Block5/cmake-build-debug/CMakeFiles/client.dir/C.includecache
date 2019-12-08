@@ -1,0 +1,94 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/valeria/Visual Studio/RN-VS/Block5/client.c
+stdio.h
+-
+string.h
+-
+stdlib.h
+-
+unistd.h
+-
+include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+include/packet.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
+sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/include/message.h
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
+message.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/message.h
+lookup.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+stdint.h
+-
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/lookup.c
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+../include/lookup.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
+string.h
+-
+stdlib.h
+-
+netdb.h
+-
+stdio.h
+-
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/message.c
+../include/message.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/message.h
+stdlib.h
+-
+stdio.h
+-
+netinet/in.h
+-
+string.h
+-
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/packet.c
+sys/socket.h
+-
+stdlib.h
+-
+stdio.h
+-
+stdint.h
+-
+../include/packet.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/sockUtils.c
+sys/socket.h
+-
+stdio.h
+-
+netdb.h
+-
+string.h
+-
+unistd.h
+-
+stdlib.h
+/home/valeria/Visual Studio/RN-VS/Block5/src/stdlib.h
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+

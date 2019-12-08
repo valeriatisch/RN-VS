@@ -13,14 +13,12 @@ CMakeFiles/server.dir/server.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/server.c
 CMakeFiles/server.dir/src/clientStore.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
- /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/message.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/clientStore.c
 CMakeFiles/server.dir/src/hash.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
- /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/hash.c
@@ -29,7 +27,6 @@ CMakeFiles/server.dir/src/lookup.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/lookup.c
 CMakeFiles/server.dir/src/message.c.o
- /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/message.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/message.c
@@ -40,13 +37,11 @@ CMakeFiles/server.dir/src/packet.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/packet.c
 CMakeFiles/server.dir/src/peerClientStore.c.o
- /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/message.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/peerClientStore.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/peerClientStore.c
 CMakeFiles/server.dir/src/sockUtils.c.o
- /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
  /home/valeria/Visual Studio/RN-VS/Block5/src/sockUtils.c
