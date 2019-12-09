@@ -1,482 +1,347 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <pthread.h>
+#include "communicationfuncs4.h"
+#include "hashtablefuncs4.h"
 
-#include "./include/hash.h"
-#include "./include/lookup.h"
-#include "./include/packet.h"
-#include "./include/clientStore.h"
-#include "./include/peerClientStore.h"
+#define HEADERLENGTH 7
 
-//New functions:
-int sendJoinMsg(serverArgs *args);
+void sigchld_handler(int s){
+// waitpid() might overwrite errno, so we save and restore it:
+    int saved_errno = errno;
 
-uint32_t ip_to_uint(char *ip_addr) {
-    struct in_addr ip;
-    if (inet_aton(ip_addr, &ip) == 0)
-        perror("converting ip to int");
-    return ip.s_addr;
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+
+    errno = saved_errno;
 }
 
-char* ip_to_str(uint32_t ip){
-    struct in_addr ips;
-    ips.s_addr = ip;
-    char* ip_str = inet_ntoa(ips);
-    if (ip_str == NULL)
-        perror("converting ip to string");
-    return  ip_str;
-}
-
-void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort){
-    sleep(2);
-    // IP String zu 32bit Zahl konvertieren
-    /*struct sockaddr_in sa;
-    inet_pton(AF_INET, nextIP, (&sa.sin_addr));*/
-
-    int peerSock = setupClient(nextIP, nextPort);
-    //send notify to joined peer
-    sendLookup(peerSock, stabilize_msg);
-    free(stabilize_msg);
-    close(peerSock);
-
-    stabilize(stabilize_msg, nextIP, nextPort);
-}
-
-
-void start_stabilize(serverArgs* args){
-    lookup* stabilize_msg = createLookup( 0, 0, 1, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-    while(1){
-        if(args->nextIP != 0 || args->nextIP != NULL ){
-            stabilize(stabilize_msg, args->nextIP, args->nextPort);
-            break;
-        }
-        sleep(2);
+void *get_in_addr(struct sockaddr *sa){
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
     }
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int handleHashTableRequest(int socket, message *msg) {
-    message *responseMessage;
+int main(int argc, char* argv[]){
 
-    switch (msg->op) {
-        case DELETE_CODE: {
-            int deleteStatus = delete(msg->key);
-            INVARIANT(deleteStatus == 0, -1, "Failed to delete")
-            responseMessage = createMessage(DELETE_CODE, ACKNOWLEDGED, NULL, NULL);
-            break;
-        }
-        case GET_CODE: {
-            hash_struct *obj = get(msg->key);
-            responseMessage = createMessage(GET_CODE, ACKNOWLEDGED, copyBuffer(msg->key),
-                                            obj != NULL ? copyBuffer(obj->value) : NULL);
-            break;
-        }
-        case SET_CODE: {
-            int setStatus = set(copyBuffer(msg->key), copyBuffer(msg->value));
-            INVARIANT(setStatus == 0, -1, "Failed to set");
-            responseMessage = createMessage(SET_CODE, ACKNOWLEDGED, NULL, NULL);
-            break;
-        }
-        default: {
-            LOG("Invalid instructions");
-        }
-    }
-
-    INVARIANT(responseMessage != NULL, -1, "");
-    int status = sendMessage(socket, responseMessage);
-    freeMessage(responseMessage);
-    INVARIANT(status == 0, -1, "Failed to send message");
-
-    return 0;
-}
-
-int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax) {
-    if (pkt->control) {
-        /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
-
-        //pkt enthaelt id, ip, port vom Peer, der joinen moechte
-        //args enthaelt eigene id usw.
-
-        if(pkt->lookup->join){
-            if(args->nextID == NULL) {
-                 args->prevID = pkt->lookup->nodeID;
-                 args->prevIP = pkt->lookup->nodeIP;
-                 args->prevPort = pkt->lookup->nodePort;
-                 
-                 args->nextID = pkt->lookup->nodeID;
-                 args->nextIP = pkt->lookup->nodeIP;
-                 args->nextPort = pkt->lookup->nodePort;
-
-                lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-                //send notify to joined peer
-                sendLookup(peerSock, notify_msg);
-                free(notify_msg);
-                close(peerSock);
-            }
-            else if(args->ownID < args->prevID){
-                //join an erster stelle
-                
-                if((pkt->lookup->nodeID > args->ownID && pkt->lookup->nodeID > args->prevID) || (pkt->lookup->nodeID < args->ownID)){
-                    //join->update pre
-                    args->prevID = pkt->lookup->nodeID;
-                    args->prevIP = pkt->lookup->nodeIP;
-                    args->prevPort = pkt->lookup->nodePort;
-                    //args->prevIP = calloc(1,sizeof(char)*4);
-                    //strncpy(args->prevIP, pkt->lookup->nodeIP, 4);
-                    //args->prevPort = calloc(1,sizeof(char)*2);
-                    //strncpy(args->prevPort, pkt->lookup->nodePort, 2);
-
-                   /* // IP String zu 32bit Zahl konvertieren
-                    struct sockaddr_in sa;
-                    inet_pton(AF_INET, pkt->lookup->nodeIP, (&sa.sin_addr));*/
-                    //create notify message
-                    lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-                    //send notify to joined peer
-                    sendLookup(peerSock, notify_msg);
-                    free(notify_msg);
-                    close(peerSock);
-                }
-                else {
-                    //forward join-message
-                    int peerSock = setupClient(args->nextIP, args->nextPort);
-                    sendLookup(peerSock, pkt->lookup);
-                    close(peerSock);
-                }
-            } else {
-                if(pkt->lookup->nodeID < args->ownID && pkt->lookup->nodeID > args->prevID){
-                    //join->update pre
-                    args->prevID = pkt->lookup->nodeID;
-                    args->prevIP = pkt->lookup->nodeIP;
-                    args->prevPort = pkt->lookup->nodePort;
-                    //strncpy(args->prevIP, pkt->lookup->nodeIP, 4);
-                    //strncpy(args->prevPort, pkt->lookup->nodePort, 2);
-
-                   /* // IP String zu 32bit Zahl konvertieren
-                    struct sockaddr_in sa;
-                    inet_pton(AF_INET, pkt->lookup->nodeIP, (&sa.sin_addr));*/
-                    //create notify message
-                    lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-
-                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-                    //send notify to joined peer
-                    sendLookup(peerSock, notify_msg);
-                    free(notify_msg);
-                    close(peerSock);
-                }
-                else{
-                    //forward join message
-                    int peerSock = setupClient(args->nextIP, args->nextPort);
-                    sendLookup(peerSock, pkt->lookup);
-                    close(peerSock);
-                }
-
-            }
-
-        } else if(pkt->lookup->notify){
-            if(args->ownID != pkt->lookup->nodeID) {
-                //update successor
-                args->nextID = pkt->lookup->nodeID;
-                args->nextIP = pkt->lookup->nodeIP;
-                args->nextPort = pkt->lookup->nodePort;
-                //strncpy(args->nextIP, pkt->lookup->nodeIP, 4);
-                //strncpy(args->nextPort, pkt->lookup->nodePort, 2);
-            }
-
-        } else if(pkt->lookup->stabilize){
-            if (args->prevID != pkt->lookup->nodeID) {
-                //update predecessor
-                args->prevID = pkt->lookup->nodeID;
-                args->prevIP = pkt->lookup->nodeIP;
-                args->prevPort = pkt->lookup->nodePort;
-                //strncpy(args->prevIP, pkt->lookup->nodeIP, 4);
-                //strncpy(args->prevPort, pkt->lookup->nodePort, 2);
-            }
-
-        } else if (pkt->lookup->lookup) {
-            int hashDestination = checkHashID(pkt->lookup->hashID, args);
-
-            switch (hashDestination) {
-                // Case 1 Der Key liegt auf dem next Server -> REPLY an lookup server schicken mit next IP, next PORT, next ID
-                case NEXT_SERVER: {
-
-                    // IP String zu 32bit Zahl konvertieren
-                    struct sockaddr_in sa;
-                    inet_pton(AF_INET, args->nextIP, (&sa.sin_addr));
-
-                    lookup *responseLookup = createLookup(0, 0, 0, 0, 1, pkt->lookup->hashID, args->nextID, sa.sin_addr.s_addr,
-                                                          atoi(args->nextPort));
-
-                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-                    sendLookup(peerSock, responseLookup);
-                    free(responseLookup);
-                    close(peerSock);
-                    break;
-                }
-
-                    // Case 2 Der key liegt auf einem unbekannten Server -> Lookup an nächsten Server
-                case UNKNOWN_SERVER: {
-                    int peerSock = setupClient(args->nextIP, args->nextPort);
-                    sendLookup(peerSock, pkt->lookup);
-                    close(peerSock);
-                }
-            }
-
-        } else if (pkt->lookup->reply) {
-            // Case 2 REPLY  -> GET/SET/DELETE Anfrage an Server schicken und das Ergebnis an Client schicken
-            clientHashStruct *s = getClientHash(pkt->lookup->hashID);
-
-            int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-            FD_SET(peerSock, master);
-            if (*(fdMax) < peerSock) {
-                *fdMax = peerSock;
-            }
-            setPeerToClientHash(peerSock, s->clientSocket);
-
-
-            int sendMessageStatus = sendMessage(peerSock, s->clientRequest);
-            INVARIANT_CB(sendMessageStatus != -1, -1, "Failed to send Message", {
-                close(peerSock);
-            });
-            deleteClientHash(pkt->lookup->hashID);
-        }
-
-        // Sock kann bei einer Control Nachricht immer geschlossen werden
-        FD_CLR(sock, master);
-        close(sock);
-    } else {
-        /******* Handle GET/SET/DELETE Request  *******/
-        if (pkt->message->ack) {
-            peerToClientHashStruct *pHash = getPeerToClientHash(sock);
-            close(pHash->peerSocket);
-            FD_CLR(pHash->peerSocket, master);
-
-
-            sendMessage(pHash->clientSocket, pkt->message);
-            close(pHash->clientSocket);
-            FD_CLR(pHash->clientSocket, master);
-
-            deletePeerToClientHash(pHash->peerSocket);
-        } else {
-            uint16_t hashID = getHashForKey(pkt->message->key);
-            int hashDestination = checkHashID(hashID, args);
-
-            switch (hashDestination) {
-
-                // Case 1 Der Key liegt auf dem aktuellen Server -> Anfrage ausführen und an Client schicken
-                case OWN_SERVER: {
-                    handleHashTableRequest(sock, pkt->message);
-                    FD_CLR(sock, master);
-                    close(sock);
-                    break;
-                }
-
-                    // Case 2 Der Key liegt auf dem next Server -> GET/SET/DELETE an Server und Ergebnis an Client schicken
-                case NEXT_SERVER: {
-                    int peerSock = setupClient(args->nextIP, args->nextPort);
-                    FD_SET(peerSock, master);
-                    if (*(fdMax) < peerSock) {
-                        *fdMax = peerSock;
-                    }
-                    setPeerToClientHash(peerSock, sock);
-
-                    int sendMessageStatus = sendMessage(peerSock, pkt->message);
-                    INVARIANT_CB(sendMessageStatus != -1, -1, "Failed to send Message", {
-                        close(peerSock);
-                    });
-                    break;
-                }
-
-                    // Case 3 Der key liegt auf einem unbekannten Server -> Lookup an nächsten Server
-                case UNKNOWN_SERVER: {
-                    int status = setClientHash(hashID, copyMessage(pkt->message), sock);
-                    if (status == -1){
-                        close(sock);
-                        return -1;
-                    }
-                    int peerSock = setupClient(args->nextIP, args->nextPort);
-                    lookup *l = createLookup(0, 0, 0, 0, 1, hashID, args->ownID, ip_to_uint(args->ownIpAddr), atoi(args->ownPort));
-                    sendLookup(peerSock, l);
-                    free(l);
-                    close(peerSock);
-                    break;
-                }
-            }
-        }
-    }
-}
-
-int startServer(int argc, serverArgs *args) {
-    fd_set master;    // Die Master File Deskriptoren Liste
-    fd_set read_fds;  // Temporäre File Deskriptor Liste für select()
-    int fdMax;        // Die maximale Anzahl an File Deskriptoren
-
-    FD_ZERO(&master);
-    FD_ZERO(&read_fds);
-
-    int socketServer = setupServer(args->ownIP, args->ownPort, &args->ownIpAddr);
-    INVARIANT(socketServer != -1, -1, "");
-
-
-    int listenStatus = listen(socketServer, 10);
-    INVARIANT_CB(listenStatus != -1, -1, "Failed to listen for incoming requests", {
-        close(socketServer);
-    });
-
-    FD_SET(socketServer, &master);
-    fdMax = socketServer;
-
-    if(argc == 6)
-        sendJoinMsg(args);
-
-    //pthread_t th[1];
-    //pthread_create(th, NULL, start_stabilize, args);
-        
-    if(!fork()){
-        start_stabilize(args);
-    }
-
-    for (;;) {
-        read_fds = master; // Kopieren
-        int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, NULL);
-        INVARIANT(selectStatus != -1, -1, "Error in select");
-
-        for (int sock = 0; sock <= fdMax; sock++) {
-            if (FD_ISSET(sock, &read_fds)) {
-                if (sock == socketServer) {
-                    struct sockaddr_storage their_addr;
-                    socklen_t addr_size = sizeof their_addr;
-
-                    // Accept a request from a client
-                    int clientSocket = accept(socketServer, (struct sockaddr *) &their_addr, &addr_size);
-                    INVARIANT_CONTINUE_CB(clientSocket != -1, "Failed to accept client", {});
-
-                    FD_SET(clientSocket, &master);
-
-                    if (clientSocket > fdMax) fdMax = clientSocket;
-
-                    LOG_DEBUG("New connection");
-                } else {
-                    packet *pkt = recvPacket(sock);
-                    INVARIANT_CONTINUE_CB(pkt != NULL, "Failed to recv message", {
-                        close(sock);
-                        FD_CLR(sock, &master);
-                    });
-
-                    handlePacket(pkt, sock, &master, args, &fdMax);
-                    freePacket(pkt);
-                }
-            }
-        }
-    }
-}
-
-int sendJoinMsg(serverArgs *args) {
-
-    /*
-    struct sockaddr_in sa;
-    inet_pton(AF_INET, args->nextIP, (&sa.sin_addr));
-
-    uint16_t port = atoi(args->nextPort);
-    int peerSock = setupClientWithAddr(sa.sin_addr.s_addr, port);*/
-    int peerSock = setupClient(args->nextIP, args->nextPort);
-
-    lookup* join_msg = createLookup(1, 0, 0, 0, 0, 0, args->ownID,ip_to_uint(args->ownIP), atoi(args->ownPort));
-    //send notify to joined peer
-    sendLookup(peerSock, join_msg);
-    free(join_msg);
-    close(peerSock);
-
-
-    /*
-    unsigned char join_buffy[11];
-    join_buffy[0] = 144; //set control and join bit
-    memcpy(join_buffy+3, &args->ownID, 2);
-    uint32_t ipAdr = ip_to_uint(args->ownIP);
-    memcpy(join_buffy+5, &ipAdr, 4);
-    uint16_t port = strtoul(args->ownPort, NULL, 10);
-    memcpy(join_buffy+9, &port, 2);
-
-    int fd = 0;
-    struct addrinfo *p;
-
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;     //AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    int status; // Keep track of possible errors
-
-    status = getaddrinfo(args->nextIP, args->nextPort, &hints, &p);
-    INVARIANT(status == 0, -1, "Failed to get address info")
-
-    fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-
-    if (connect(fd, p->ai_addr, p->ai_addrlen) == -1)
-    {
-        close(fd);
-        perror("connection error");
+    if(argc != 10){
+        perror("Input is wrong.");
         exit(EXIT_FAILURE);
     }
-    send(fd, &join_buffy, 11, 0);
-    close(fd);
-    */
-}
 
-serverArgs *parseArguments(char *argv[]) {
-    serverArgs *ret = calloc(1, sizeof(serverArgs));
+    fd_set master;    // master file descriptor list
+    fd_set read_fds;  // temp file descriptor list for select()
+    int fdmax;        // maximum file descriptor number
 
-    ret->ownID = atoi(argv[1]);
-    ret->ownIP = argv[2];
-    ret->ownPort = argv[3];
-    ret->ownIpAddr = 0;
+    int listener;     // listening socket descriptor
+    int newfd;        // newly accept()ed socket descriptor
+    struct sockaddr_storage remoteaddr; // client address
+    socklen_t addrlen;
+    struct sigaction sa;
 
-    ret->prevID = atoi(argv[4]);
+    char buf[256];    // buffer for client data
+    int nbytes;
 
-    ret->nextID = atoi(argv[7]);
-    ret->nextIP = argv[8];
-    ret->nextPort = argv[9];
+    char remoteIP[INET6_ADDRSTRLEN];
 
-    return ret;
-}
+    int yes=1;        // for setsockopt() SO_REUSEADDR, below
+    int i, j, rv;
 
-serverArgs* parseArguments_Block5(int argc, char* argv[]){
-    serverArgs *ret = calloc(1, sizeof(serverArgs));
+    struct addrinfo hints, *ai, *p;
 
-    if(argc == 3 || argc == 4){
-        ret->ownIP = argv[1];
-        ret->ownPort = argv[2];
-        ret->ownID = 0;
-        ret->ownIpAddr = 0;
-        ret->nextIP = 0;
-        if(argc == 4){
-            ret->ownID = atoi(argv[3]);
+    struct peer* self = malloc(sizeof(struct peer));
+    self->predecessor = malloc(sizeof(struct peer));
+    self->successor = malloc(sizeof(struct peer));
+
+    self->node_ID = atoi(argv[1]);
+    self->node_IP = ip_to_uint(argv[2]); //converts a string in IPv4 numbers-and-dots notation host byte order
+    self->node_PORT = atoi(argv[3]);
+    self->predecessor->node_ID = atoi(argv[4]);
+    self->predecessor->node_IP = ip_to_uint(argv[5]);
+    self->predecessor->node_PORT = atoi(argv[6]);
+    self->successor->node_ID = atoi(argv[7]);
+    self->successor->node_IP = ip_to_uint(argv[8]);
+    self->successor->node_PORT = atoi(argv[9]);
+    char* test_port = argv[9];
+
+    FD_ZERO(&master);    // clear the master and temp sets
+    FD_ZERO(&read_fds);
+
+    // get us a socket and bind it
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    char* IP = ip_to_str(self->node_IP);
+    char PORT[sizeof(uint16_t)];
+    sprintf(PORT, "%d", self->node_PORT);
+    if ((rv = getaddrinfo(IP, PORT, &hints, &ai)) != 0) {
+        fprintf(stderr, "selectserver: %s\n", gai_strerror(rv));
+        exit(1);
+    }
+
+    for(p = ai; p != NULL; p = p->ai_next) {
+        listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (listener < 0) {
+            continue;
         }
-        //TODO: start ring with me
+
+        // lose the pesky "address already in use" error message
+        setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+        if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
+            close(listener);
+            continue;
+        }
+
+        break;
     }
 
-    if(argc == 6){
-        ret->ownIP = argv[1];
-        ret->ownPort = argv[2];
-        ret->ownID = atoi(argv[3]);
-        ret->ownIpAddr = 0;
-        ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
-        ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
+    // if we got here, it means we didn't get bound
+    if (p == NULL) {
+        fprintf(stderr, "selectserver: failed to bind\n");
+        exit(2);
     }
 
-    return ret;
-}
+    freeaddrinfo(ai); // all done with this
 
-int main(int argc, char *argv[]) {
-    // Parse arguments
-    //INVARIANT(argc == 10, -1, "Command line args invalid");
-    //serverArgs *args = parseArguments(argv);
-    serverArgs *args = parseArguments_Block5(argc, argv);
+    // listen
+    if (listen(listener, 10) == -1) {
+        perror("listen");
+        exit(3);
+    }
 
-    return startServer(argc, args); //TODO: muss umgeschrieben werden
+    // add the listen
+    FD_SET(listener, &master);
+
+    // keep track of the biggest file descriptor
+    fdmax = listener; // so far, it's this one
+
+    sa.sa_handler = sigchld_handler; // reap all dead processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
+
+    // main loop
+    for(;;) {
+        addrlen = sizeof(remoteaddr);
+        i = accept(listener,(struct sockaddr * )&remoteaddr, &addrlen);
+        if (i == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(remoteaddr.ss_family,get_in_addr((struct sockaddr *)&remoteaddr),remoteIP, sizeof remoteIP);
+        printf("server: got connection from %s\n", remoteIP);
+
+        if(!fork()){
+
+            char* commands = recv_n_char(i, 1); //recv the first byte, the commands, so we can check what kind of a protocol it is
+            int control = (commands[0] >> 7) & 0b1; //check the first bit
+
+            int rpeer_fd = 0;
+
+            // it's the old protocol
+            if (control <= 0) {
+
+            //https://stackoverflow.com/questions/9746866/how-to-concat-two-char-in-c
+            //receive complete header
+            printf("test0\n");
+            char* header = malloc(HEADERLENGTH);
+            //strcpy(header,commands);
+            printf("hi1\n");
+            char *rest_header = recv_n_char(i, HEADERLENGTH - 1);
+            printf("hi2\n");
+            //printf("%d\n", rest_header[1]);
+            //header = strcat(header, rest_header);
+            memcpy(header, commands, 1);
+            memcpy(header+1, rest_header, HEADERLENGTH - 1);
+            //receive key
+            uint16_t keylen = (header[1] << 8) | header[2];
+            printf("hi3\n");
+            char *key = recv_n_char(i, keylen);
+            printf("hi4\n");
+
+            //get call type from header get/set/del
+            int requested_del = header[0] & 0b1;
+            int requested_set = (header[0] >> 1) & 0b1;
+            int requested_get = (header[0] >> 2) & 0b1;
+            //hash key into binary
+            uint16_t hashed_key = hash(key, keylen);
+
+            int ack = (commands[0] >> 3) & 0b1;
+            // ack bit not set, therefore request from client
+            if (ack <= 0) {
+                printf("test1\n");
+                struct intern_HT* new_elem = malloc(sizeof(struct intern_HT));
+                new_elem->hashed_key = hashed_key;
+                new_elem->fd = i;
+                            new_elem->header = malloc(HEADERLENGTH);
+                            memcpy(new_elem->header, header, HEADERLENGTH);
+                            new_elem->key = malloc(keylen); //eventuell +1
+                            memcpy(new_elem->key, key, keylen);
+                            printf("test1.2\n");
+
+                            //get value-length and receive value
+                            uint32_t valuelen = 0;
+                            char* value = NULL;
+                            new_elem->value = NULL;
+                            if(requested_set > 0){
+                                valuelen = (header[3] << 24)
+                                           | ((header[4] & 0xFF) << 16)
+                                           | ((header[5] & 0xFF) << 8)
+                                           | (header[6] & 0xFF);
+                                printf("hi5\n");
+                                value = recv_n_char(i, valuelen);
+                                printf("hi6\n");
+                                new_elem->value = malloc(sizeof(value)); //eventuell +1
+                                memcpy(new_elem->value, value, sizeof value);
+                            }
+                            printf("test1.3\n");
+                            intern_set(new_elem);
+                            printf("test1.4\n");
+                            //I am responsible
+                            if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 1) {
+                                printf("test1.5\n");
+                                printf("m2c\n");
+
+                                struct sockaddr_in peer;
+                                int len = sizeof(struct sockaddr);
+                                if(getpeername(i, &peer, &len) == -1) {
+                                    perror("failure gerpeername");
+                                }
+                                printf("Peer's IP address is: %s\n", inet_ntoa(peer.sin_addr));
+                                printf("Peer's port is: %d\n", (int) peer.sin_port);
+
+
+                                send_message2client(header, i, HEADERLENGTH, keylen, key, valuelen, value); 
+                                printf("m2c...\n");
+
+
+                                close(i);
+                                FD_CLR(i, &master);
+                            }
+                            //my successor is responsible
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 2) {
+                                printf("test1.6\n");
+                                //send_ringmessage(listener,create_reply(hashed_key, self));
+                                printf("test2\n");
+
+                                 //get file decsriptor of my successor, who's responsible
+                                 int peer_fd = get_fd(self->successor->node_IP, test_port);
+
+                                struct sockaddr_in peer;
+                                int len = sizeof(struct sockaddr);
+                                if(getpeername(i, &peer, &len) == -1) {
+                                    perror("failure gerpeername");
+                                }
+                                printf("Peer's IP address is: %s\n", inet_ntoa(peer.sin_addr));
+                                printf("Peer's port is: %d\n", peer.sin_port);
+
+                                 //send him cliet's request
+                                 if(requested_set > 0) {
+                                     printf("keylen:%d\nvaluelen:%d\n",keylen,valuelen);
+                                     send_n_char(peer_fd,header,HEADERLENGTH);
+                                     send_n_char(peer_fd,key,keylen);
+                                     send_n_char(peer_fd,value,valuelen);
+                                 }
+                                 else{
+                                     send_n_char(peer_fd,header,HEADERLENGTH);
+                                     send_n_char(peer_fd,key,keylen);
+                                 }
+                                printf("test2\n");
+                                close(peer_fd);
+
+                            }
+                                //lookup for next peer
+                            else if (check_datarange(hashed_key, self->node_ID, self->successor->node_ID, self->predecessor->node_ID) == 3) {
+                                printf("test lookup send\n");
+                                int peer_fd = get_fd(self->successor->node_IP, test_port);
+                                send_ringmessage(peer_fd, create_lookup(hashed_key, self));
+                                close(peer_fd);
+                                printf("test3\n");
+                            }
+                        } else if (ack > 0) { //it's a reply(old-protocol) from another peer -> send to client
+                            printf("test koennen wir das\n");
+                            struct intern_HT* new_elem = intern_get(hashed_key);
+                            int fd =new_elem->fd;
+
+                            //send protocol to client
+                            send_n_char(fd,header,HEADERLENGTH);
+
+                            // receive valuelength and value and send to client
+                            if(requested_get > 0){
+                                uint32_t valuelen = (header[3] << 24)
+                                                    | ((header[4] & 0xFF) << 16)
+                                                    | ((header[5] & 0xFF) << 8)
+                                                    | (header[6] & 0xFF);
+                                char* value = recv_n_char(i, valuelen);
+                                send_n_char(fd,key,keylen);
+                                send_n_char(fd,value,valuelen);
+                            }
+
+                            close(fd);
+                            close(rpeer_fd);
+                            close(i);
+                            FD_CLR(i, &master);
+                        }
+                    }
+                        //it's the new protocol!
+                    else if (control > 0) {
+
+                        // make sure it's a reply
+                        if ((commands[0] >> 1) & 0b1) {
+
+                            //recv intern reply message (contains the ip and port of responsible peer)
+                            struct ring_message* reply = recv_ringmessage(i);
+
+                            //get file descriptor of the responsible peer
+                            char p[3];
+                            sprintf(p, "%u", reply->node_PORT);
+                            rpeer_fd = get_fd(reply->node_IP, p);
+
+                            //get client's request from intern hashtable
+                            struct intern_HT* clients_request = intern_get(reply->hash_ID);
+
+                            //send client's request to responsible peer
+                            send_n_char(rpeer_fd, clients_request->header, HEADERLENGTH);
+                            send_n_char(rpeer_fd, clients_request->key, sizeof clients_request->key);
+
+                            //send value only if set-bit is set
+                            if(((clients_request->header[0] >> 1) & 0b1) > 0){
+                                send_n_char(rpeer_fd, clients_request->value, sizeof clients_request->value);
+                            }
+                            //make sure it's a lookup
+                        } else if ((commands[0]) & 0b1) {
+                            struct ring_message* lookup_msg = recv_ringmessage(i);
+
+                            //never, check just in case
+                            if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 1){
+                                perror("check_datarange");
+                            }
+                                //next node is responsible, send responsible node to first node
+                            else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 2){
+                                char p[3];
+                                sprintf(p, "%u", lookup_msg->node_PORT);
+                                int peer_fd = get_fd(lookup_msg->node_IP,lookup_msg->node_PORT);
+                                send_ringmessage(peer_fd, create_reply(lookup_msg->hash_ID, self->successor));
+                                close(peer_fd);
+                            }
+                                //send lookup to next node
+                            else if(check_datarange(lookup_msg->hash_ID,self->node_ID,self->successor->node_ID,self->predecessor->node_ID) == 3){
+
+                                //get fd of my successor and send the lookup
+                                int peer_fd = get_fd(self->successor->node_IP, self->successor->node_PORT);
+                                send_ringmessage(peer_fd, lookup_msg);
+                                close(peer_fd);
+                            }
+                        }
+                    }
+                }
+                // END handle data from client
+            // END got new incoming connection
+        // END looping through file descriptors
+    }// END for(;;)--and you thought it would never end!
+    return 0;
+
 }
