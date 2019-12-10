@@ -114,6 +114,9 @@ uint16_t checkHashID(uint16_t hashID, serverArgs* args) {
 void printLookup(lookup* l) {
 #ifdef DEBUG
     fprintf(stderr, "{\n");
+    fprintf(stderr, "\tjoin: %d\n", l->join);
+    fprintf(stderr, "\tnotify %d\n", l->notify);
+    fprintf(stderr, "\tstabilize: %d\n", l->stabilize);
     fprintf(stderr, "\treply: %d\n", l->reply);
     fprintf(stderr, "\tlookup: %d\n", l->lookup);
     fprintf(stderr, "\thashID: %d\n", l->hashID);

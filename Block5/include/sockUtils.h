@@ -62,7 +62,7 @@ typedef struct serverArgs_ {
 
     int prevID;
     char* prevIP;
-    uint16_t prevPort;
+    char* prevPort;
 } serverArgs;
 
 typedef struct _buffer {
