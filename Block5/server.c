@@ -34,14 +34,15 @@ char* ip_to_str(uint32_t ip){
     char* ip_str = calloc(1, INET_ADDRSTRLEN);
 
     //DEBUG
-    printf("ip in \n\tuint32_t: %d\n\tstring: %s\n", ip, input_buffer);
+    //printf("ip in \n\tuint32_t: %d\n\tstring: %s\n", ip, input_buffer);
 
 
     inet_ntop(AF_INET, input_buffer, ip_str, INET_ADDRSTRLEN);
     if (input_buffer == NULL)
         perror("Converting IP to string\n");
 
-    printf("ip_str after conversion: %s\n", ip_str);
+    //printf("ip_str after conversion: %s\n", ip_str);
+    free(input_buffer);
     return  ip_str;
 }
 
@@ -105,8 +106,9 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
         /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
 
         if(pkt->lookup->join){
-            if(args->nextID == NULL) {
-
+            //ersten peer hinzufügen
+            if(args->nextID == -1) {
+                printf("ersten peer hinzufügen\n");
                 args->prevID = pkt->lookup->nodeID;
                 args->prevIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                 strncpy(args->prevIP,  ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
@@ -126,11 +128,15 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 free(notify_msg);
                 close(peerSock);
             }
-            else if(args->ownID < args->prevID){
                 //join an erster stelle
+            else if(args->ownID < args->prevID){
+                //args ist "erster" peer
+                //printf("CASE: args->ownID < args->prevID\n");
 
                 if((pkt->lookup->nodeID > args->ownID && pkt->lookup->nodeID > args->prevID) || (pkt->lookup->nodeID < args->ownID)){
                     //join->update pre
+                    //printf("CASE: args->ownID < args->prevID, Joining\n");
+                    printf("neuen peer einfügen: meh\n");
                     args->prevID = pkt->lookup->nodeID;
                     args->prevIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                     strncpy(args->prevIP,  ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
@@ -146,14 +152,19 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     close(peerSock);
                 }
                 else {
+                    //printf("CASE: args->ownID < args->prevID, Forwarding message\n");
                     //forward join-message
+                    printf("I am the first peer(owndID < prevID, going to forward message to next peer\n");
                     int peerSock = setupClient(args->nextIP, args->nextPort);
                     sendLookup(peerSock, pkt->lookup);
                     close(peerSock);
                 }
             } else {
+                //printf("CASE: args->ownID >= args->prevID\n");
+                //join->update pre
                 if(pkt->lookup->nodeID < args->ownID && pkt->lookup->nodeID > args->prevID){
-                    //join->update pre
+                    printf("neuen peer einfügen\n");
+                    //printf("CASE: args->ownID >= args->prevID, Joining\n");
                     args->prevID = pkt->lookup->nodeID;
                     args->prevIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                     strncpy(args->prevIP,  ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
@@ -169,8 +180,9 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     free(notify_msg);
                     close(peerSock);
                 }
-                else{
                     //forward join message
+                else{
+                    //printf("CASE: args->ownID >= args->prevID, Forwarding message\n");
                     int peerSock = setupClient(args->nextIP, args->nextPort);
                     sendLookup(peerSock, pkt->lookup);
                     close(peerSock);
@@ -199,6 +211,16 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 strncpy(args->prevIP,  ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                 args->prevPort = calloc(1, 5);
                 strncpy(args->prevPort, port_to_str(pkt->lookup->nodePort), 5);
+
+                //send notify for predecessor
+                //create notify message
+                lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->prevID, ip_to_uint(args->prevIP), atoi(args->prevPort));
+                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                //send notify to joined peer
+                sendLookup(peerSock, notify_msg);
+                free(notify_msg);
+                close(peerSock);
+
             }
 
         } else if (pkt->lookup->lookup) {
@@ -346,6 +368,7 @@ int startServer(int argc, serverArgs *args) {
         int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, &tv);
         INVARIANT(selectStatus != -1, -1, "Error in select");
 
+        //TODO: Fallunterscheidung für stabilize : timer/new fd -> selectstatus
         //send stabilize
         stabilize(args);
 
@@ -380,14 +403,19 @@ int startServer(int argc, serverArgs *args) {
 }
 
 int sendJoinMsg(serverArgs *args) {
+    //printf("Sending join message\n");
 
     int peerSock = setupClient(args->nextIP, args->nextPort);
+    //printf("Created peerSock using setupClient\n");
 
     lookup* join_msg = createLookup(1, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+    //printf("join message has been created using createLookup\n");
     //send notify to joined peer
     sendLookup(peerSock, join_msg);
+    //printf("Lookup has been sent\n");
     free(join_msg);
     close(peerSock);
+    //printf("peersock closed\n");
 
 }
 
@@ -416,6 +444,8 @@ serverArgs* parseArguments_Block5(int argc, char* argv[]){
         ret->ownPort = argv[2];
         ret->ownID = 0;
         ret->ownIpAddr = 0;
+        // define ID = -1 as not assigned
+        ret->nextID = -1;
         if(argc == 4){
             ret->ownID = atoi(argv[3]);
         }
@@ -427,6 +457,7 @@ serverArgs* parseArguments_Block5(int argc, char* argv[]){
         ret->ownPort = argv[2];
         ret->ownID = atoi(argv[3]);
         ret->ownIpAddr = 0;
+        ret->nextID = -1;
         ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
         ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
     }
