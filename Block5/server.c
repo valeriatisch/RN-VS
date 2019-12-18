@@ -359,43 +359,50 @@ int startServer(int argc, serverArgs *args) {
     if(argc == 6)
         sendJoinMsg(args);
 
+    struct timeval tv;
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
+    
     for (;;) {
-        struct timeval tv;
-        tv.tv_sec = 2;
-        tv.tv_usec = 0;
-
         read_fds = master; // Kopieren
         int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, &tv);
         INVARIANT(selectStatus != -1, -1, "Error in select");
 
-        //TODO: Fallunterscheidung für stabilize : timer/new fd -> selectstatus
-        //send stabilize
-        stabilize(args);
+        //timeout -> send stabilize
+        if(selectStatus == 0){
+            //send stabilize
+            stabilize(args);
+            tv.tv_sec = 2;
+            tv.tv_usec = 0;
+        }
+        //new fd -> handle packet
+        else {
 
-        for (int sock = 0; sock <= fdMax; sock++) {
-            if (FD_ISSET(sock, &read_fds)) {
-                if (sock == socketServer) {
-                    struct sockaddr_storage their_addr;
-                    socklen_t addr_size = sizeof their_addr;
+            for (int sock = 0; sock <= fdMax; sock++) {
+                if (FD_ISSET(sock, &read_fds)) {
+                    if (sock == socketServer) {
+                        struct sockaddr_storage their_addr;
+                        socklen_t addr_size = sizeof their_addr;
 
-                    // Accept a request from a client
-                    int clientSocket = accept(socketServer, (struct sockaddr *) &their_addr, &addr_size);
-                    INVARIANT_CONTINUE_CB(clientSocket != -1, "Failed to accept client", {});
+                        // Accept a request from a client
+                        int clientSocket = accept(socketServer, (struct sockaddr *) &their_addr, &addr_size);
+                        INVARIANT_CONTINUE_CB(clientSocket != -1, "Failed to accept client", {});
 
-                    FD_SET(clientSocket, &master);
+                        FD_SET(clientSocket, &master);
 
-                    if (clientSocket > fdMax) fdMax = clientSocket;
+                        if (clientSocket > fdMax) fdMax = clientSocket;
 
-                    LOG_DEBUG("New connection");
-                } else {
-                    packet *pkt = recvPacket(sock);
-                    INVARIANT_CONTINUE_CB(pkt != NULL, "Failed to recv message", {
-                        close(sock);
-                        FD_CLR(sock, &master);
-                    });
+                        LOG_DEBUG("New connection");
+                    } else {
+                        packet *pkt = recvPacket(sock);
+                        INVARIANT_CONTINUE_CB(pkt != NULL, "Failed to recv message", {
+                            close(sock);
+                            FD_CLR(sock, &master);
+                        });
 
-                    handlePacket(pkt, sock, &master, args, &fdMax);
-                    freePacket(pkt);
+                        handlePacket(pkt, sock, &master, args, &fdMax);
+                        freePacket(pkt);
+                    }
                 }
             }
         }
