@@ -192,35 +192,34 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
 
         } else if(pkt->lookup->notify){
             if(args->ownID != pkt->lookup->nodeID) {
-                //update successor
 
+                //update successor
                 args->nextID = pkt->lookup->nodeID;
                 args->nextIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                 strncpy(args->nextIP, ip_to_str(pkt->lookup->nodeIP),sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                 args->nextPort = calloc(1,5);
                 strncpy(args->nextPort, port_to_str(pkt->lookup->nodePort), 5);
-
             }
 
         } else if(pkt->lookup->stabilize){
             if (args->prevID != pkt->lookup->nodeID) {
+                /*
                 //update predecessor
-
                 args->prevID = pkt->lookup->nodeID;
                 args->prevIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
-                strncpy(args->prevIP,  ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
+                strncpy(args->prevIP,   r(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
                 args->prevPort = calloc(1, 5);
                 strncpy(args->prevPort, port_to_str(pkt->lookup->nodePort), 5);
+                 */
 
-                //send notify for predecessor
                 //create notify message
                 lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->prevID, ip_to_uint(args->prevIP), atoi(args->prevPort));
                 int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+
                 //send notify to joined peer
                 sendLookup(peerSock, notify_msg);
                 free(notify_msg);
                 close(peerSock);
-
             }
 
         } else if (pkt->lookup->lookup) {
@@ -362,7 +361,7 @@ int startServer(int argc, serverArgs *args) {
     struct timeval tv;
     tv.tv_sec = 2;
     tv.tv_usec = 0;
-    
+
     for (;;) {
         read_fds = master; // Kopieren
         int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, &tv);
