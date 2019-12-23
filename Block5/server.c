@@ -54,6 +54,7 @@ char* port_to_str(uint16_t port){
 
 void stabilize(serverArgs* args){
     if(args->nextIP != NULL && args->nextPort != NULL){
+        printf("args->nextIP: %s, args->nextPort: %s",args->nextIP, args->nextPort);
         int peerSock = setupClient(args->nextIP, args->nextPort);
         //send stabilize
         lookup *stabilize_msg = createLookup(0, 0, 1, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP),atoi(args->ownPort));
@@ -202,7 +203,17 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
             }
 
         } else if(pkt->lookup->stabilize){
-            if (args->prevID != pkt->lookup->nodeID) {
+            // predecessor not set
+            if(args->prevID == NULL || args->prevIP == NULL) {
+                //update predecessor
+                args->prevID = pkt->lookup->nodeID;
+                args->prevIP = calloc(1, sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
+                strncpy(args->prevIP, ip_to_str(pkt->lookup->nodeIP), sizeof(ip_to_str(pkt->lookup->nodeIP)) + 1);
+                args->prevPort = calloc(1, 5);
+                strncpy(args->prevPort, port_to_str(pkt->lookup->nodePort), 5);
+                
+            }
+            else if (args->prevID != pkt->lookup->nodeID) {
                 /*
                 //update predecessor
                 args->prevID = pkt->lookup->nodeID;
@@ -214,7 +225,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
 
                 //create notify message
                 lookup* notify_msg = createLookup( 0, 1, 0, 0, 0, pkt->lookup->hashID, args->prevID, ip_to_uint(args->prevIP), atoi(args->prevPort));
-                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort); 
 
                 //send notify to joined peer
                 sendLookup(peerSock, notify_msg);
