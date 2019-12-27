@@ -1,5 +1,9 @@
 {
     "files.associations": {
-        "signal.h": "c"
+        "signal.h": "c",
+        "clientstore.h": "c",
+        "sockutils.h": "c",
+        "pthread.h": "c",
+        "peerclientstore.h": "c"
     }
 }
