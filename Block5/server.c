@@ -103,19 +103,20 @@ int handleHashTableRequest(int socket, message *msg) {
     return 0;
 }
 
-int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax) {
+int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax, ft** fingertable) {
     if (pkt->control) {
         /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
 
         if(pkt->lookup->finger){
         //setup finger table
-
-            if(create_ft(args) == 1){
+            fingertable = create_ft(args);
+            if(fingertable != NULL){
             //TODO: send lookup with f_ack
                 peerToClientHashStruct *pHash = getPeerToClientHash(sock);    
                 close(pHash->peerSocket);
                 FD_CLR(pHash->peerSocket, master);
-                sendMessage(pHash->clientSocket, pkt->message);
+                lookup* ack_msg = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+                sendMessage(pHash->clientSocket, ack_msg);
                 close(pHash->clientSocket);
 
                 deletePeerToClientHash(pHash->peerSocket);
@@ -259,22 +260,35 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
             }
 
         } else if (pkt->lookup->reply) {
-            // Case 2 REPLY  -> GET/SET/DELETE Anfrage an Server schicken und das Ergebnis an Client schicken
-            clientHashStruct *s = getClientHash(pkt->lookup->hashID);
-
-            int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
-            FD_SET(peerSock, master);
-            if (*(fdMax) < peerSock) {
-                *fdMax = peerSock;
+            
+            //reply for fingertable
+            if(fingertable != NULL){
+                for(int i = 0; i < 16;i++){
+                    if(fingertable[i]->id == pkt->lookup->hashID){
+                        fingertable[i]->ip = pkt->lookup->nodeIP;
+                        fingertable[i]->port = pkt->lookup->nodePort;
+                    }
+                }
             }
-            setPeerToClientHash(peerSock, s->clientSocket);
+            
+            else{
+                // Case 2 REPLY  -> GET/SET/DELETE Anfrage an Server schicken und das Ergebnis an Client schicken
+                clientHashStruct *s = getClientHash(pkt->lookup->hashID);
+
+                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                FD_SET(peerSock, master);
+                if (*(fdMax) < peerSock) {
+                    *fdMax = peerSock;
+                }
+                setPeerToClientHash(peerSock, s->clientSocket);
 
 
-            int sendMessageStatus = sendMessage(peerSock, s->clientRequest);
-            INVARIANT_CB(sendMessageStatus != -1, -1, "Failed to send Message", {
-                close(peerSock);
-            });
-            deleteClientHash(pkt->lookup->hashID);
+                int sendMessageStatus = sendMessage(peerSock, s->clientRequest);
+                INVARIANT_CB(sendMessageStatus != -1, -1, "Failed to send Message", {
+                    close(peerSock);
+                });
+                deleteClientHash(pkt->lookup->hashID);
+            }
         }
 
         // Sock kann bei einer Control Nachricht immer geschlossen werden
@@ -346,6 +360,7 @@ int startServer(int argc, serverArgs *args) {
     fd_set master;    // Die Master File Deskriptoren Liste
     fd_set read_fds;  // Temporäre File Deskriptor Liste für select()
     int fdMax;        // Die maximale Anzahl an File Deskriptoren
+    ft** fingertable = NULL; //fingertable
 
     FD_ZERO(&master);
     FD_ZERO(&read_fds);
@@ -406,7 +421,7 @@ int startServer(int argc, serverArgs *args) {
                             FD_CLR(sock, &master);
                         });
 
-                        handlePacket(pkt, sock, &master, args, &fdMax);
+                        handlePacket(pkt, sock, &master, args, &fdMax, fingertable);
                         freePacket(pkt);
                     }
                 }
