@@ -6,9 +6,11 @@
 #include <netdb.h>
 #include <stdio.h>
 
-lookup *createLookup(int isJoin, int isNotify, int isStabilize, int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort) {
+lookup *createLookup(int finger, int f_ack, int isJoin, int isNotify, int isStabilize, int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort) {
     lookup *ret = calloc(1, sizeof(lookup));
 
+    ret->finger = finger;
+    ret->f_ack = f_ack;
     ret->join = isJoin;
     ret->notify = isNotify;
     ret->stabilize = isStabilize;
@@ -27,6 +29,8 @@ buffer *encodeLookup(lookup *l) {
 
     buff[0] = buff[0] | 0b10000000; // Control bit immer auf 1
 
+    if (l->finger) buff[0] = buff[0] | 0b01000000;
+    if (l->f_ack) buff[0] = buff[0] | 0b00100000;
     if (l->join) buff[0] = buff[0] | 0b00010000;
     if (l->notify) buff[0] = buff[0] | 0b00001000;
     if (l->stabilize) buff[0] = buff[0] | 0b00000100;
@@ -52,7 +56,9 @@ buffer *encodeLookup(lookup *l) {
  * @return lookup
  */
 lookup *decodeLookup(uint8_t firstLine, buffer* buff) {
-    
+
+    int finger = checkBit(firstLine, 6);
+    int f_ack = checkBit(firstLine, 5);
     int join = checkBit(firstLine, 4);
     int notify = checkBit(firstLine, 3);
     int stabilize = checkBit(firstLine, 2);
@@ -71,7 +77,7 @@ lookup *decodeLookup(uint8_t firstLine, buffer* buff) {
 
     // nodeIP schon in network byte order
     // und da hashID ein bitstring ist, muss es nicht in eine bestimmte order
-    return createLookup(join, notify, stabilize, reply, lookup, hashID, ntohs(nodeID), nodeIP, ntohs(nodePort));
+    return createLookup(finger, f_ack, join, notify, stabilize, reply, lookup, hashID, ntohs(nodeID), nodeIP, ntohs(nodePort));
 }
 
 int sendLookup(int socket, lookup* l) {
@@ -114,6 +120,8 @@ uint16_t checkHashID(uint16_t hashID, serverArgs* args) {
 void printLookup(lookup* l) {
 #ifdef DEBUG
     fprintf(stderr, "{\n");
+    fprintf(stderr, "\tfinger: %d\n",l->finger);
+    fprintf(stderr, "\tf_ack: %d\n",l->f_ack);
     fprintf(stderr, "\tjoin: %d\n", l->join);
     fprintf(stderr, "\tnotify %d\n", l->notify);
     fprintf(stderr, "\tstabilize: %d\n", l->stabilize);

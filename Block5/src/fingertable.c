@@ -22,20 +22,22 @@ ft* create_ft_item(serverArgs* args){
 
 }
 
-int create_ft(serverArgs* args){
+ft** create_ft(serverArgs* args){
 
     ft** fingertable = malloc(sizeof(ft*) * 16);
 
     for(int i = 0; i < 16; i++){
 
         /** TODO **/
-        
-        int start = formula(args->ownID, i);
+        fingertable[i] = create_ft_item(args);
 
-        lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, );        
+        int start = formula(args->ownID, i);
+        fingertable[i]->id = start;
+
+        lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, args->ownIP, args->ownPort);        
     }
 
-    return 1; // on success
+    return fingertable;
 }
 
 void print_fingertable(serverArgs* args, ft** fingertable){

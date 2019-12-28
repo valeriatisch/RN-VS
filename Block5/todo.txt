@@ -55,7 +55,7 @@ handlepacket für lookup -> finger bit (1) prüfen
     ->init fingertable
         -startwerte berechnen : m = 15
         -lookups mit startwerten versenden
-        -richtige replys erhalten ??? 
+        -richtige replys erhalten
         -table ausfüllen   
 antwort (lookup) mit f-Ack (2) wenn fertig
 
@@ -63,8 +63,6 @@ wenn fingertable vorhanden
     ->lookup mit fingertable weiter leiten
         -handlepacket (lookup): fingertable benutzen
 
-
-TODO:(Moritz) E-Mail an Willie: Koennen wir davon ausgehen, dass, waehrend die Fingertable aufgebaut wird, keine Anfragen rein kommen?
 
 
 

@@ -4,6 +4,8 @@
 #include "sockUtils.h"
 
 typedef struct _lookup {
+    int finger;
+    int f_ack;
     int join;
     int notify;
     int stabilize;
@@ -18,7 +20,7 @@ typedef struct _lookup {
 
 buffer *encodeLookup(lookup *l);
 
-lookup *createLookup(int isJoin, int isNotify, int isStabilize, int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort);
+lookup *createLookup(int finger, int f_ack, int isJoin, int isNotify, int isStabilize, int reply, int isLookup, uint16_t hashID, uint16_t nodeID, uint32_t nodeIP, uint16_t nodePort);
 
 int sendLookup(int socket, lookup* l);
 lookup *recvLookup(int socket, uint8_t firstLine);
