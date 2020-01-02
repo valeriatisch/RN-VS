@@ -3,6 +3,7 @@
 
 CMakeFiles/server.dir/server.c.o
  /home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
+ /home/valeria/Visual Studio/RN-VS/Block5/include/fingertable.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
  /home/valeria/Visual Studio/RN-VS/Block5/include/message.h

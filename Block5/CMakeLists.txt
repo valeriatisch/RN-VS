@@ -6,4 +6,4 @@ project(Block4)
 
 
 add_executable(client client.c include/sockUtils.h src/sockUtils.c include/message.h src/message.c include/lookup.h src/lookup.c include/packet.h src/packet.c)
-add_executable(server server.c include/sockUtils.h src/sockUtils.c include/message.h src/message.c include/lookup.h src/lookup.c include/hash.h src/hash.c include/packet.h src/packet.c include/uthash.h src/clientStore.c include/clientStore.h src/peerClientStore.c include/peerClientStore.h)
+add_executable(server server.c include/fingertable.h include/fingertable.c include/sockUtils.h src/sockUtils.c include/message.h src/message.c include/lookup.h src/lookup.c include/hash.h src/hash.c include/packet.h src/packet.c include/uthash.h src/clientStore.c include/clientStore.h src/peerClientStore.c include/peerClientStore.h)

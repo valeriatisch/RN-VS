@@ -12,6 +12,30 @@ message.h
 uthash.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
 
+/home/valeria/Visual Studio/RN-VS/Block5/include/fingertable.h
+stdlib.h
+-
+stdint.h
+-
+math.h
+-
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+../include/lookup.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
+../include/peerClientStore.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/peerClientStore.h
+../include/hash.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
+../include/packet.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
+../include/clientStore.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+
 /home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
 uthash.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/uthash.h
@@ -71,6 +95,10 @@ netdb.h
 -
 pthread.h
 -
+signal.h
+-
+./include/fingertable.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/fingertable.h
 ./include/hash.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/hash.h
 ./include/lookup.h
@@ -81,4 +109,30 @@ pthread.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/clientStore.h
 ./include/peerClientStore.h
 /home/valeria/Visual Studio/RN-VS/Block5/include/peerClientStore.h
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/lookup.c
+../include/sockUtils.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/sockUtils.h
+../include/lookup.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/lookup.h
+string.h
+-
+stdlib.h
+-
+netdb.h
+-
+stdio.h
+-
+
+/home/valeria/Visual Studio/RN-VS/Block5/src/packet.c
+sys/socket.h
+-
+stdlib.h
+-
+stdio.h
+-
+stdint.h
+-
+../include/packet.h
+/home/valeria/Visual Studio/RN-VS/Block5/include/packet.h
 
