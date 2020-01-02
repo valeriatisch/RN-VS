@@ -27,7 +27,10 @@ ft** create_ft(serverArgs* args){
         int start = formula(args->ownID, i);
         fingertable[i]->id = start;
 
-        lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, args->ownIP, args->ownPort);
+        lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+        int next_socket = setupClient(args->nextIP, args->nextPort);
+        sendLookup(next_socket, ft_message);
+        close(next_socket);
     }
 
     return fingertable;
@@ -42,7 +45,7 @@ int fingertable_full(ft** fingertable){
 
     return 1;
 }
-
+    
 int ft_index_of_peer(ft** fingertable, int hash, int own_id){
 
     for(int i = 0; i < FT_SIZE; i++){

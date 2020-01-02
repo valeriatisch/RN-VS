@@ -58,7 +58,7 @@ void stabilize(serverArgs* args){
         printf("args->nextIP: %s, args->nextPort: %s",args->nextIP, args->nextPort);
         int peerSock = setupClient(args->nextIP, args->nextPort);
         //send stabilize
-        lookup *stabilize_msg = createLookup(0, 0, 0, 1, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP),atoi(args->ownPort));
+        lookup *stabilize_msg = createLookup(0, 0, 0, 0, 1, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP),atoi(args->ownPort));
         sendLookup(peerSock, stabilize_msg);
         free(stabilize_msg);
         close(peerSock);
@@ -243,7 +243,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     struct sockaddr_in sa;
                     inet_pton(AF_INET, args->nextIP, (&sa.sin_addr));
 
-                    lookup *responseLookup = createLookup(0, 0, 0, 0, 0, 0, 1, pkt->lookup->hashID, args->nextID, sa.sin_addr.s_addr,
+                    lookup *responseLookup = createLookup(0, 0, 0, 0, 0, 1, 0, pkt->lookup->hashID, args->nextID, sa.sin_addr.s_addr,
                                                           atoi(args->nextPort));
 
                     int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
@@ -258,7 +258,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     int peerSock;
 
                     //fingertable wenn möglich benutzen
-                    if((fingertable != NULL) && (fingertable_full == 1)){
+                    if((fingertable != NULL) && (fingertable_full(fingertable) == 1)){
                         //fingertable durchsuchen
                         int i = ft_index_of_peer(fingertable, pkt->lookup->hashID, args->ownID);
                         if(i == -1){
@@ -266,7 +266,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                             exit(42);
                         }
                         //richtigen peer ansprechen
-                        peerSock = setupClient(fingertable[i]->ip, fingertable[i]->port);
+                        peerSock = setupClientWithAddr(fingertable[i]->ip, fingertable[i]->port);
                     }
                     
                     //keine fingertable vorhanden
@@ -276,6 +276,18 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     sendLookup(peerSock, pkt->lookup);
                     close(peerSock); 
                 }
+
+                //Case 3 lookup von fingertable und wir sind zuständig
+                case OWN_SERVER: {
+                    lookup *responseLookup = createLookup(0, 0, 0, 0, 0, 1, 0, pkt->lookup->hashID, args->ownID, ip_to_uint(args->ownIP),
+                                                          atoi(args->ownPort));
+
+                    int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
+                    sendLookup(peerSock, responseLookup);
+                    free(responseLookup);
+                    close(peerSock);
+                    break;
+                } 
             }
 
         } else if (pkt->lookup->reply) {
@@ -294,6 +306,9 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 
                 //fingertable ist voll
                 if(fingertable_full(fingertable) == 1){
+
+                    print_fingertable(args,fingertable);
+
                     peerToClientHashStruct *pHash = getPeerToClientHash(sock);
                     close(pHash->peerSocket);
                     FD_CLR(pHash->peerSocket, master);
@@ -383,7 +398,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
 
                     int peerSock;
                     //fingertable wenn möglich benutzen
-                    if((fingertable != NULL) && (fingertable_full == 1)){
+                    if((fingertable != NULL) && (fingertable_full(fingertable) == 1)){
                         //fingertable durchsuchen
                         int i = ft_index_of_peer(fingertable, pkt->lookup->hashID, args->ownID);
                         if(i == -1){
@@ -391,7 +406,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                             exit(42);
                         }
                         //richtigen peer ansprechen
-                        peerSock = setupClient(fingertable[i]->ip, fingertable[i]->port);
+                        peerSock = setupClientWithAddr(fingertable[i]->ip, fingertable[i]->port);
                     }
                     
                     //keine fingertable vorhanden
@@ -480,8 +495,8 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 }	
             }	
         }	
-    }	
-}	
+    }
+ }    		
 
 int sendJoinMsg(serverArgs *args) {	
     //printf("Sending join message\n");	
