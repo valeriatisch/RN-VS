@@ -282,11 +282,28 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
             
             //reply for fingertable
             if(fingertable != NULL){
-                for(int i = 0; i < 16;i++){
-                    if(fingertable[i]->id == pkt->lookup->hashID){ 
-                        fingertable[i]->ip = pkt->lookup->nodeIP;
-                        fingertable[i]->port = pkt->lookup->nodePort;
+                //fingertable wird noch gefüllt
+                if(fingertable_full(fingertable) == 0){
+                    for(int i = 0; i < 16;i++){
+                        if(fingertable[i]->id == pkt->lookup->hashID){ 
+                            fingertable[i]->ip = pkt->lookup->nodeIP;
+                            fingertable[i]->port = pkt->lookup->nodePort;
+                        }
                     }
+                }
+                
+                //fingertable ist voll
+                if(fingertable_full(fingertable) == 1){
+                    peerToClientHashStruct *pHash = getPeerToClientHash(sock);
+                    close(pHash->peerSocket);
+                    FD_CLR(pHash->peerSocket, master);
+
+                    lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+                    sendLookup(pHash->clientSocket, f_ack);
+                    close(pHash->clientSocket);
+                    FD_CLR(pHash->clientSocket, master);
+
+                    deletePeerToClientHash(pHash->peerSocket);
                 }
             }
             
