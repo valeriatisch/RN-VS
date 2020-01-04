@@ -7,6 +7,15 @@
 
 #include "../include/sockUtils.h"
 
+uint32_t ip_to_uint(char *ip_addr) {
+    struct sockaddr_in sa;
+    if((inet_pton(AF_INET, ip_addr, (&sa.sin_addr))) == 0){
+        perror("Converting IP to int\n");
+    }
+    return sa.sin_addr.s_addr;
+}
+
+
 /**
  * Erstellt einen neuen buffer mit der maximalen Länge "maxLength"
  *
@@ -227,12 +236,12 @@ int setupClientWithAddr(uint32_t s_addr, uint16_t port) {
 
     int clientSocket = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
     INVARIANT(clientSocket != -1, -1, "Failed to create socket")
-    printf("next connect\n");
+    //printf("next connect\n");
     int connectStatus = connect(clientSocket, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
     INVARIANT_CB(connectStatus != -1, -1, "Failed to connect to lookup address",{
         close(clientSocket);
     })
-    printf("after connecet\n");
+    //printf("after connecet\n");
     return clientSocket;
 }
 

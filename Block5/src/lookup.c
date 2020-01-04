@@ -114,9 +114,8 @@ uint16_t getHashForKey(buffer *key) {
 uint16_t checkHashID(uint16_t hashID, serverArgs* args) {
     if(hashID > args->prevID && hashID <= args->ownID) return OWN_SERVER;
     else if(hashID > args->ownID && hashID <= args->nextID) return NEXT_SERVER;
-    else if(args->prevID == args->nextID){
-        return NEXT_SERVER;
-    }
+    else if(args->prevID == args->nextID) return NEXT_SERVER;
+    else if(args->ownID < args->prevID && hashID > args->prevID) return OWN_SERVER;
     else return UNKNOWN_SERVER;
 }
 

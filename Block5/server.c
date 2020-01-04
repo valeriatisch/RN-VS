@@ -20,14 +20,6 @@ int clientfd;
 //New functions:
 int sendJoinMsg(serverArgs *args);
 
-uint32_t ip_to_uint(char *ip_addr) {
-    struct sockaddr_in sa;
-    if((inet_pton(AF_INET, ip_addr, (&sa.sin_addr))) == 0){
-        perror("Converting IP to int\n");
-    }
-    return sa.sin_addr.s_addr;
-}
-
 
 char* ip_to_str(uint32_t ip){
     //buffer to save ip as an array
@@ -309,7 +301,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 //fingertable ist voll
                 if(fingertable_full(fingertable) == 1){
 
-                    print_fingertable(args,fingertable);
+                    //print_fingertable(args,fingertable);
 
                     lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
                     sendLookup(clientfd, f_ack);
