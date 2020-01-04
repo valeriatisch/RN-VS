@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "../include/fingertable.h"
 
 
@@ -21,7 +22,7 @@ ft** create_ft(serverArgs* args){
     ft** fingertable = malloc(sizeof(ft*) * 16);
 
     for(int i = 0; i < 16; i++){
-     
+
         fingertable[i] = create_ft_item(args);
 
         int start = formula(args->ownID, i);
@@ -32,27 +33,32 @@ ft** create_ft(serverArgs* args){
             fingertable[i]->ip = ip_to_uint(args->ownIP);
             fingertable[i]->port = atoi(args->ownPort);
         }
-        //lookup für zuständigen peer 
+            //lookup für zuständigen peer
         else{
+            usleep(500000);
             lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
             int next_socket = setupClient(args->nextIP, args->nextPort);
             sendLookup(next_socket, ft_message);
             close(next_socket);
         }
     }
+    if(fingertable_full(fingertable) == 1){
+        print_fingertable(args, fingertable);
+    }
+
     return fingertable;
 }
 
 int fingertable_full(ft** fingertable){
 
     for(int i = 0; i < 16; i++){
-        if(fingertable[i]->ip == NULL)
+        if(fingertable[i]->port == 0)
             return 0;
     }
 
     return 1;
 }
-    
+
 int ft_index_of_peer(ft** fingertable, int hash, int own_id){
 
     for(int i = 0; i < FT_SIZE; i++){
@@ -66,7 +72,12 @@ int ft_index_of_peer(ft** fingertable, int hash, int own_id){
 
 
 void print_fingertable(serverArgs* args, ft** fingertable){
-    for(int i = 0; i < FT_SIZE; i++) {
-        printf("i: %d start: %d ft[i]: %d\n", i, formula(args->ownID, i), fingertable[i]->id);
+    if(fingertable != NULL) {
+        for (int i = 0; i < FT_SIZE; i++) {
+            if (fingertable[i] != NULL && fingertable[i]->port != 0) {
+                printf("i: %d start: %d ft[i]: %d\n", i, formula(args->ownID, i), fingertable[i]->id);
+                printf("\tport: %d\n", fingertable[i]->port);
+            }
+        }
     }
 }

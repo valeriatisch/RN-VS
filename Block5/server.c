@@ -14,6 +14,9 @@
 #include "./include/clientStore.h"
 #include "./include/peerClientStore.h"
 
+ft** fingertable = NULL; //fingertable
+int clientfd;
+
 //New functions:
 int sendJoinMsg(serverArgs *args);
 
@@ -103,25 +106,26 @@ int handleHashTableRequest(int socket, message *msg) {
     return 0;
 }
 
-int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax, ft** fingertable) {
+int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *fdMax) {
     if (pkt->control) {
         /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
 
-        int peerSock = setupClient(args->ownIP, args->ownPort);   
+        int peerSock = setupClient(args->ownIP, args->ownPort);
         setPeerToClientHash(peerSock,sock);
-         FD_SET(peerSock, master);
-            if (*(fdMax) < peerSock) {
-                *fdMax = peerSock;
-            }
-           
+        FD_SET(peerSock, master);
+        if (*(fdMax) < peerSock) {
+            *fdMax = peerSock;
+        }
+
 
         if(pkt->lookup->finger){
-        //setup finger table
+            //setup finger table
+            clientfd = sock;
             fingertable = create_ft(args);
-        
+
             if(fingertable_full(fingertable) == 1){
                 lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-                sendLookup(sock, f_ack);
+                sendLookup(clientfd, f_ack);
             }
         }
 
@@ -147,7 +151,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 free(notify_msg);
                 close(peerSock);
             }
-            //join an erster stelle
+                //join an erster stelle
             else if(args->ownID < args->prevID){
 
                 if((pkt->lookup->nodeID > args->ownID && pkt->lookup->nodeID > args->prevID) || (pkt->lookup->nodeID < args->ownID)){
@@ -166,13 +170,12 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     free(notify_msg);
                     close(peerSock);
                 }
-                //forward join-message
+                    //forward join-message
                 else {
                     int peerSock = setupClient(args->nextIP, args->nextPort);
                     sendLookup(peerSock, pkt->lookup);
                     close(peerSock);
                 }
-
             } else {
                 //join->update pre
                 if(pkt->lookup->nodeID < args->ownID && pkt->lookup->nodeID > args->prevID){
@@ -191,7 +194,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     free(notify_msg);
                     close(peerSock);
                 }
-                //forward join message
+                    //forward join message
                 else{
                     int peerSock = setupClient(args->nextIP, args->nextPort);
                     sendLookup(peerSock, pkt->lookup);
@@ -219,11 +222,11 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                 args->prevPort = calloc(1, 5);
                 strncpy(args->prevPort, port_to_str(pkt->lookup->nodePort), 5);
             }
-            
+
             else if (args->prevID != pkt->lookup->nodeID) {
                 //create notify message
                 lookup* notify_msg = createLookup(0, 0, 0, 1, 0, 0, 0, pkt->lookup->hashID, args->prevID, ip_to_uint(args->prevIP), atoi(args->prevPort));
-                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort); 
+                int peerSock = setupClientWithAddr(pkt->lookup->nodeIP, pkt->lookup->nodePort);
 
                 //send notify to joined peer
                 sendLookup(peerSock, notify_msg);
@@ -252,7 +255,7 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     break;
                 }
 
-                // Case 2 Der key liegt auf einem unbekannten Server -> Lookup an nächsten Server
+                    // Case 2 Der key liegt auf einem unbekannten Server -> Lookup an nächsten Server
                 case UNKNOWN_SERVER: {
                     int peerSock;
 
@@ -267,16 +270,16 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                         //richtigen peer ansprechen
                         peerSock = setupClientWithAddr(fingertable[i]->ip, fingertable[i]->port);
                     }
-                    
-                    //keine fingertable vorhanden
+
+                        //keine fingertable vorhanden
                     else{
                         peerSock = setupClient(args->nextIP, args->nextPort);
                     }
                     sendLookup(peerSock, pkt->lookup);
-                    close(peerSock); 
+                    close(peerSock);
                 }
 
-                //Case 3 lookup von fingertable und wir sind zuständig
+                    //Case 3 lookup von fingertable und wir sind zuständig
                 case OWN_SERVER: {
                     lookup *responseLookup = createLookup(0, 0, 0, 0, 0, 1, 0, pkt->lookup->hashID, args->ownID, ip_to_uint(args->ownIP),
                                                           atoi(args->ownPort));
@@ -286,31 +289,38 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     free(responseLookup);
                     close(peerSock);
                     break;
-                } 
+                }
             }
 
         } else if (pkt->lookup->reply) {
-            
+
             //reply for fingertable
             if(fingertable != NULL){
                 //fingertable wird noch gefüllt
                 if(fingertable_full(fingertable) == 0){
-                    for(int i = 0; i < 16;i++){
-                        if(fingertable[i]->id == pkt->lookup->hashID){ 
+                    for(int i = 0; i < 16; i++){
+                        if(fingertable[i]->id == pkt->lookup->hashID){
                             fingertable[i]->ip = pkt->lookup->nodeIP;
                             fingertable[i]->port = pkt->lookup->nodePort;
                         }
                     }
                 }
-                
+
                 //fingertable ist voll
                 if(fingertable_full(fingertable) == 1){
 
                     print_fingertable(args,fingertable);
 
-                    peerToClientHashStruct *pHash = getPeerToClientHash(sock);
-                    close(pHash->peerSocket);
-                    FD_CLR(pHash->peerSocket, master);
+                    lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+                    sendLookup(clientfd, f_ack);
+                    close(clientfd);
+                    FD_CLR(clientfd, master);
+                    /*
+                    int peersock = setupClient(args->ownIP,args->ownPort);
+
+                    peerToClientHashStruct *pHash = getPeerToClientHash(peersock);
+                    //close(pHash->peerSocket);
+                    //FD_CLR(pHash->peerSocket, master);
 
                     lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
                     sendLookup(pHash->clientSocket, f_ack);
@@ -318,9 +328,10 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                     FD_CLR(pHash->clientSocket, master);
 
                     deletePeerToClientHash(pHash->peerSocket);
+                    */
                 }
             }
-            
+
             else{
                 // Case 2 REPLY  -> GET/SET/DELETE Anfrage an Server schicken und das Ergebnis an Client schicken
                 clientHashStruct *s = getClientHash(pkt->lookup->hashID);
@@ -407,163 +418,162 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
                         //richtigen peer ansprechen
                         peerSock = setupClientWithAddr(fingertable[i]->ip, fingertable[i]->port);
                     }
-                    
-                    //keine fingertable vorhanden
+
+                        //keine fingertable vorhanden
                     else{
                         peerSock = setupClient(args->nextIP, args->nextPort);
                     }
                     lookup *l = createLookup(0, 0, 0, 0, 0, 0, 1, hashID, args->ownID, args->ownIpAddr, atoi(args->ownPort));
-                    sendLookup(peerSock, l);	
-                    free(l);	
-                    close(peerSock);	
-                    break;	
-                }	
-            }	
-        }	
-    }	
-}	
-
- int startServer(int argc, serverArgs *args) {	
-    fd_set master;    // Die Master File Deskriptoren Liste	
-    fd_set read_fds;  // Temporäre File Deskriptor Liste für select()	
-    int fdMax;        // Die maximale Anzahl an File Deskriptoren	
-    ft** fingertable = NULL; //fingertable	
-
-    FD_ZERO(&master);	
-    FD_ZERO(&read_fds);	
-
-    int socketServer = setupServer(args->ownIP, args->ownPort, &args->ownIpAddr);	
-    INVARIANT(socketServer != -1, -1, "");	
-
-
-    int listenStatus = listen(socketServer, 10);	
-    INVARIANT_CB(listenStatus != -1, -1, "Failed to listen for incoming requests", {	
-        close(socketServer);	
-    });	
-
-    FD_SET(socketServer, &master);	
-    fdMax = socketServer;	
-
-    if(argc == 6)	
-        sendJoinMsg(args);	
-
-    struct timeval tv;	
-    tv.tv_sec = 2;	
-    tv.tv_usec = 0;	
-
-    for (;;) {	
-        read_fds = master; // Kopieren	
-        int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, &tv);	
-        INVARIANT(selectStatus != -1, -1, "Error in select");	
-
-        //timeout -> send stabilize	
-        if(selectStatus == 0){	
-            //send stabilize	
-            stabilize(args);	
-            tv.tv_sec = 2;	
-            tv.tv_usec = 0;	
-        }	
-        //new fd -> handle packet	
-        else {	
-            for (int sock = 0; sock <= fdMax; sock++) {	
-                if (FD_ISSET(sock, &read_fds)) {	
-                    if (sock == socketServer) {	
-                        struct sockaddr_storage their_addr;	
-                        socklen_t addr_size = sizeof their_addr;	
-
-                        // Accept a request from a client	
-                        int clientSocket = accept(socketServer, (struct sockaddr *) &their_addr, &addr_size);	
-                        INVARIANT_CONTINUE_CB(clientSocket != -1, "Failed to accept client", {});	
-
-                        FD_SET(clientSocket, &master);	
-
-                        if (clientSocket > fdMax) fdMax = clientSocket;	
-
-                        LOG_DEBUG("New connection");	
-                    } else {	
-                        packet *pkt = recvPacket(sock);	
-                        INVARIANT_CONTINUE_CB(pkt != NULL, "Failed to recv message", {	
-                            close(sock);	
-                            FD_CLR(sock, &master);	
-                        });	
-
-                        handlePacket(pkt, sock, &master, args, &fdMax, fingertable);	
-                        freePacket(pkt);	
-                    }	
-                }	
-            }	
-        }	
+                    sendLookup(peerSock, l);
+                    free(l);
+                    close(peerSock);
+                    break;
+                }
+            }
+        }
     }
- }    		
+}
 
-int sendJoinMsg(serverArgs *args) {	
-    //printf("Sending join message\n");	
+int startServer(int argc, serverArgs *args) {
+    fd_set master;    // Die Master File Deskriptoren Liste
+    fd_set read_fds;  // Temporäre File Deskriptor Liste für select()
+    int fdMax;        // Die maximale Anzahl an File Deskriptoren
 
-    int peerSock = setupClient(args->nextIP, args->nextPort);	
-    //printf("Created peerSock using setupClient\n");	
+    FD_ZERO(&master);
+    FD_ZERO(&read_fds);
 
-    lookup* join_msg = createLookup(0, 0, 1, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));	
-    //printf("join message has been created using createLookup\n");	
-    //send notify to joined peer	
-    sendLookup(peerSock, join_msg);	
-    //printf("Lookup has been sent\n");	
-    free(join_msg);	
-    close(peerSock);	
-    //printf("peersock closed\n");	
+    int socketServer = setupServer(args->ownIP, args->ownPort, &args->ownIpAddr);
+    INVARIANT(socketServer != -1, -1, "");
 
- }	
 
- serverArgs *parseArguments(char *argv[]) {	
-    serverArgs *ret = calloc(1, sizeof(serverArgs));	
+    int listenStatus = listen(socketServer, 10);
+    INVARIANT_CB(listenStatus != -1, -1, "Failed to listen for incoming requests", {
+        close(socketServer);
+    });
 
-    ret->ownID = atoi(argv[1]);	
-    ret->ownIP = argv[2];	
-    ret->ownPort = argv[3];	
-    ret->ownIpAddr = 0;	
+    FD_SET(socketServer, &master);
+    fdMax = socketServer;
 
-    ret->prevID = atoi(argv[4]);	
+    if(argc == 6)
+        sendJoinMsg(args);
 
-    ret->nextID = atoi(argv[7]);	
-    ret->nextIP = argv[8];	
-    ret->nextPort = argv[9];	
+    struct timeval tv;
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
 
-    return ret;	
-}	
+    for (;;) {
+        read_fds = master; // Kopieren
+        int selectStatus = select(fdMax + 1, &read_fds, NULL, NULL, &tv);
+        INVARIANT(selectStatus != -1, -1, "Error in select");
 
- serverArgs* parseArguments_Block5(int argc, char* argv[]){	
-    serverArgs *ret = calloc(1, sizeof(serverArgs));	
+        //timeout -> send stabilize
+        if(selectStatus == 0){
+            //send stabilize
+            stabilize(args);
+            tv.tv_sec = 2;
+            tv.tv_usec = 0;
+        }
+            //new fd -> handle packet
+        else {
+            for (int sock = 0; sock <= fdMax; sock++) {
+                if (FD_ISSET(sock, &read_fds)) {
+                    if (sock == socketServer) {
+                        struct sockaddr_storage their_addr;
+                        socklen_t addr_size = sizeof their_addr;
 
-    if(argc == 3 || argc == 4){	
-        ret->ownIP = argv[1];	
-        ret->ownPort = argv[2];	
-        ret->ownID = 0;	
-        ret->ownIpAddr = 0;	
-        // define ID = -1 as not assigned	
-        ret->nextID = -1;	
-        if(argc == 4){	
-            ret->ownID = atoi(argv[3]);	
-        }	
-        //TODO: start ring with me	
-    }	
+                        // Accept a request from a client
+                        int clientSocket = accept(socketServer, (struct sockaddr *) &their_addr, &addr_size);
+                        INVARIANT_CONTINUE_CB(clientSocket != -1, "Failed to accept client", {});
 
-    if(argc == 6){	
-        ret->ownIP = argv[1];	
-        ret->ownPort = argv[2];	
-        ret->ownID = atoi(argv[3]);	
-        ret->ownIpAddr = 0;	
-        ret->nextID = -1;	
-        ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to	
-        ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to	
-    }	
+                        FD_SET(clientSocket, &master);
 
-    return ret;	
-}	
+                        if (clientSocket > fdMax) fdMax = clientSocket;
 
- int main(int argc, char *argv[]) {	
-    // Parse arguments	
-    //INVARIANT(argc == 10, -1, "Command line args invalid");	
-    //serverArgs *args = parseArguments(argv);	
-    serverArgs *args = parseArguments_Block5(argc, argv);	
+                        LOG_DEBUG("New connection");
+                    } else {
+                        packet *pkt = recvPacket(sock);
+                        INVARIANT_CONTINUE_CB(pkt != NULL, "Failed to recv message", {
+                            close(sock);
+                            FD_CLR(sock, &master);
+                        });
 
-    return startServer(argc, args); //TODO: muss umgeschrieben werden	
-} 
+                        handlePacket(pkt, sock, &master, args, &fdMax);
+                        freePacket(pkt);
+                    }
+                }
+            }
+        }
+    }
+}
+
+int sendJoinMsg(serverArgs *args) {
+    //printf("Sending join message\n");
+
+    int peerSock = setupClient(args->nextIP, args->nextPort);
+    //printf("Created peerSock using setupClient\n");
+
+    lookup* join_msg = createLookup(0, 0, 1, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+    //printf("join message has been created using createLookup\n");
+    //send notify to joined peer
+    sendLookup(peerSock, join_msg);
+    //printf("Lookup has been sent\n");
+    free(join_msg);
+    close(peerSock);
+    //printf("peersock closed\n");
+
+}
+
+serverArgs *parseArguments(char *argv[]) {
+    serverArgs *ret = calloc(1, sizeof(serverArgs));
+
+    ret->ownID = atoi(argv[1]);
+    ret->ownIP = argv[2];
+    ret->ownPort = argv[3];
+    ret->ownIpAddr = 0;
+
+    ret->prevID = atoi(argv[4]);
+
+    ret->nextID = atoi(argv[7]);
+    ret->nextIP = argv[8];
+    ret->nextPort = argv[9];
+
+    return ret;
+}
+
+serverArgs* parseArguments_Block5(int argc, char* argv[]){
+    serverArgs *ret = calloc(1, sizeof(serverArgs));
+
+    if(argc == 3 || argc == 4){
+        ret->ownIP = argv[1];
+        ret->ownPort = argv[2];
+        ret->ownID = 0;
+        ret->ownIpAddr = 0;
+        // define ID = -1 as not assigned
+        ret->nextID = -1;
+        if(argc == 4){
+            ret->ownID = atoi(argv[3]);
+        }
+        //TODO: start ring with me
+    }
+
+    if(argc == 6){
+        ret->ownIP = argv[1];
+        ret->ownPort = argv[2];
+        ret->ownID = atoi(argv[3]);
+        ret->ownIpAddr = 0;
+        ret->nextID = -1;
+        ret->nextIP = argv[4];      //ret->nextIP holds IP of peer we want to send our join-msg to
+        ret->nextPort = argv[5];    //ret->nextPort holds port of peer we want to send our join-msg to
+    }
+
+    return ret;
+}
+
+int main(int argc, char *argv[]) {
+    // Parse arguments
+    //INVARIANT(argc == 10, -1, "Command line args invalid");
+    //serverArgs *args = parseArguments(argv);
+    serverArgs *args = parseArguments_Block5(argc, argv);
+
+    return startServer(argc, args); //TODO: muss umgeschrieben werden
+}

@@ -71,6 +71,7 @@ typedef struct _buffer {
     uint32_t maxLength;
 } buffer;
 
+uint32_t ip_to_uint(char *ip_addr);
 //void start_stabilize(serverArgs* args);
 //void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
 buffer* createBuffer(uint32_t length);
