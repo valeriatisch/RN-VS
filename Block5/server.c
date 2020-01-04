@@ -55,7 +55,7 @@ char* port_to_str(uint16_t port){
 
 void stabilize(serverArgs* args){
     if(args->nextIP != NULL && args->nextPort != NULL){
-        printf("args->nextIP: %s, args->nextPort: %s",args->nextIP, args->nextPort);
+        //printf("args->nextIP: %s, args->nextPort: %s",args->nextIP, args->nextPort);
         int peerSock = setupClient(args->nextIP, args->nextPort);
         //send stabilize
         lookup *stabilize_msg = createLookup(0, 0, 0, 0, 1, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP),atoi(args->ownPort));
@@ -107,23 +107,22 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
     if (pkt->control) {
         /******* Handle Join/Notify/Stabilize/Lookup/Reply Request  *******/
 
+        int peerSock = setupClient(args->ownIP, args->ownPort);   
+        setPeerToClientHash(peerSock,sock);
+         FD_SET(peerSock, master);
+            if (*(fdMax) < peerSock) {
+                *fdMax = peerSock;
+            }
+           
+
         if(pkt->lookup->finger){
         //setup finger table
             fingertable = create_ft(args);
-            /*
-            if(fingertable != NULL){
-            //TODO: send lookup with f_ack
-                peerToClientHashStruct *pHash = getPeerToClientHash(sock);    
-                close(pHash->peerSocket);
-                FD_CLR(pHash->peerSocket, master);
-                lookup* ack_msg = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-                sendMessage(pHash->clientSocket, ack_msg);
-                close(pHash->clientSocket);
-
-                deletePeerToClientHash(pHash->peerSocket);
+        
+            if(fingertable_full(fingertable) == 1){
+                lookup* f_ack = createLookup(0, 1, 0, 0, 0, 0, 0, 0, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+                sendLookup(sock, f_ack);
             }
-            */
-
         }
 
         else if(pkt->lookup->join){
@@ -466,7 +465,6 @@ int handlePacket(packet *pkt, int sock, fd_set *master, serverArgs *args, int *f
         }	
         //new fd -> handle packet	
         else {	
-
             for (int sock = 0; sock <= fdMax; sock++) {	
                 if (FD_ISSET(sock, &read_fds)) {	
                     if (sock == socketServer) {	

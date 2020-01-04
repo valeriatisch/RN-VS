@@ -21,18 +21,25 @@ ft** create_ft(serverArgs* args){
     ft** fingertable = malloc(sizeof(ft*) * 16);
 
     for(int i = 0; i < 16; i++){
-        /** TODO **/
+     
         fingertable[i] = create_ft_item(args);
 
         int start = formula(args->ownID, i);
         fingertable[i]->id = start;
 
-        lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
-        int next_socket = setupClient(args->nextIP, args->nextPort);
-        sendLookup(next_socket, ft_message);
-        close(next_socket);
+        //selbst zuständig für startwert
+        if(args->nextID == -1 || checkHashID(start, args) == OWN_SERVER){
+            fingertable[i]->ip = ip_to_uint(args->ownIP);
+            fingertable[i]->port = atoi(args->ownPort);
+        }
+        //lookup für zuständigen peer 
+        else{
+            lookup *ft_message = createLookup(0, 0, 0, 0, 0, 0, 1, start, args->ownID, ip_to_uint(args->ownIP), atoi(args->ownPort));
+            int next_socket = setupClient(args->nextIP, args->nextPort);
+            sendLookup(next_socket, ft_message);
+            close(next_socket);
+        }
     }
-
     return fingertable;
 }
 
