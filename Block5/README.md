@@ -1,16 +1,4 @@
-## Example setup
+Der Code ist auf Basis des Codes einer anderen Hauaufgabengruppe entstanden (bis Block4).
+Um den nun vorliegenden Code nicht durch Markierungen unleserlich zu machen, haben wir uns entschlossen hier den vollständigen kopierten Code anzugeben. Jedwegige Änderung daran sind unsere eigene Arbeit im Rahmen dieser Hausaufgabe.
 
-OWN_ID OWN_IP OWN_PORT PREV_ID PREV_IP PREV_PORT NEXT_ID NEXT_IP NEXT_PORT
-
-
-
-CHORD 1: 15 127.0.0.1 3000 45000 127.0.0.1 3003 15000 127.0.0.1 3001
-
-CHORD 2: 15000 127.0.0.1 3001 15 127.0.0.1 3000 30000 127.0.0.1 3002
-
-CHORD 3: 30000 127.0.0.1 3002 15000 127.0.0.1 3001 45000 127.0.0.1 3003
-
-CHORD 4: 45000 127.0.0.1 3003 30000 127.0.0.1 3003 15 127.0.0.1 3000
-
-
-
+Der kopierte Code ist als "Block 4" in dieser Abgabe enthalten.
