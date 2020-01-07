@@ -1,0 +1,23 @@
+NTP Client
+
+- Übergabeparameter: n = Anzahl der Requests und beliebig viele Server im Anschluss
+    -> beliebig viele Parameter (min. 3 und n > 0)
+
+- an jeden Server n Anfragen mit Abstand von 8 Sek. senden
+    - fortlaufende Nummer für jede Anfrage (0++)
+    - Delay und Offset für jede Anfrage berechnen
+    - Info ausgeben: Zeitangabe in Sek. mit > 6 Nachkommastellen
+        {IP oder Hostname};{Anfrage Nummer};{Root Dispersion}; {Dispersion über
+        8 Anfragen};{Delay};{Offset}
+
+- Zeitmessung: clock_gettime
+    struct timespec {
+        time_t tv_sec; /* seconds */
+        long tv_nsec; /* nanoseconds */
+    };
+
+- Dispersion für jeden Server
+
+- https://tools.ietf.org/html/rfc5905
+
+
