@@ -1,7 +1,3 @@
-/*
-** talker.c -- a datagram "client" demo
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,9 +18,9 @@ int main(int argc, char *argv[])
 	int rv;
 	int numbytes;
 
-	if (argc != 3) {
-		fprintf(stderr,"usage: talker hostname message\n");
-		exit(1);
+	if (argc <= 3) {
+		fprintf(stderr,"usage: ./ntpclient n server1 server2 server3...\n");
+		exit(42);
 	}
 
 	memset(&hints, 0, sizeof hints);
