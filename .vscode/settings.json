@@ -4,6 +4,7 @@
         "clientstore.h": "c",
         "sockutils.h": "c",
         "pthread.h": "c",
-        "peerclientstore.h": "c"
+        "peerclientstore.h": "c",
+        "time.h": "c"
     }
 }

@@ -4,7 +4,33 @@
 #include <string.h>
 #include <unistd.h>
 #include "stdlib.h"
+#include <time.h>
 
+void getTime(timespec time_to_get) {
+    if (clock_gettime(CLOCK_REALTIME, &time_to_get) == -1) {
+		peeror("failed to get time");
+		exit(1);
+	}
+} 
+
+long getTimeDiff_asNano(timespec start, timespec stop){
+    long start_sec_as_nano = start.tv_sec * 1E+9;
+	long stop_sec_as_nano = stop.tv_sec * 1E+9;
+	return ((stop_sec_as_nano + stop.tv_nsec) - (start_sec_as_nano + start.tv_nsec));
+}
+
+void timeSleep_nano(long time_nano) {
+    if(time_nano <= 0) {
+        perror("timeout, receive took longer then 8 seconds");
+        exit(1);
+    }
+    else {
+        struct timespec time;
+        time.tv_sec = time_nano / 1E+9;
+        time.tv_nsec = time_nano % (long) 1E+9;
+        nanosleep(time, NULL);
+    }
+}
 
 /**
  * Erstellt einen neuen buffer mit der maximalen Länge "maxLength"

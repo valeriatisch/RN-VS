@@ -71,6 +71,9 @@ typedef struct _buffer {
     uint32_t maxLength;
 } buffer;
 
+void getTime(timespec time_to_get);
+long getTimeDiff_asNano(timespec start, timespec stop);
+void timeSleep_nano(long time_nano);
 uint32_t ip_to_uint(char *ip_addr);
 //void start_stabilize(serverArgs* args);
 //void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
