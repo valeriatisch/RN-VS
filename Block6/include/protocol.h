@@ -14,7 +14,7 @@ typedef struct _protocol  {
     uint64_t orig_ts;
     uint64_t rec_ts;
     uint64_t trans_ts;
-} protocol;
+}protocol;
 
 typedef struct _buffer {
     uint8_t *buff;
@@ -27,8 +27,8 @@ uint32_t ref_ID, uint64_t ref_ts, uint64_t orig_ts, uint64_t rec_ts, uint64_t tr
 buffer *encodeProtocol(protocol *p);
 protocol *decodeProtocol(buffer* buff);
 
-int sendProtocol(int socket, protocol* p);
-protocol *recvProtocol(int socket);
+int sendProtocol(int socket, protocol* p, struct addrinfo *addr);
+protocol *recvProtocol(int socket, struct addrinfo *addr);
 void printProtocol(protocol *p);
 
 

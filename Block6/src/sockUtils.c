@@ -5,15 +5,54 @@
 #include <unistd.h>
 #include "stdlib.h"
 #include <time.h>
+#include "../include/protocol.h"
 
-void getTime(timespec time_to_get) {
+struct timespec sendPacket(int sockfd, struct addrinfo *p){
+    //send ntp protocol
+    protocol* prot = createProtocol(0, 4, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    sendProtocol(sockfd, prot, p);
+    
+    //timestamp t1
+    struct timespec sent;
+    getTime(sent);
+    return sent;  
+}
+
+void receivePacket(int n, int sockfd, double* delay_arr, struct timespec start, struct addrinfo *p_arg){
+    protocol *prot = recvProtocol(sockfd, p_arg);
+
+    //timestamp t4
+    struct timespec received;
+    getTime(received);
+
+    print_result(); 
+}
+
+double get_max(double* array) {
+    double max = array[0];
+    for(int i = 1; i < 8; i++){
+        if(array[i] > max) max = array[i];
+    }
+    return max;
+}
+
+double get_min_not_zero(double* array) {
+    if(array[0] == 0.0) return array[0];
+    double min_not_zero = array[0];
+    for(int i = 1; i < 8; i++) {
+        if(array[i] != 0.0 && array[i] < min_not_zero) min_not_zero = array[i];
+    }
+    return min_not_zero;
+}
+
+void getTime(struct timespec time_to_get) {
     if (clock_gettime(CLOCK_REALTIME, &time_to_get) == -1) {
 		peeror("failed to get time");
 		exit(1);
 	}
 } 
 
-long getTimeDiff_asNano(timespec start, timespec stop){
+long getTimeDiff_asNano(struct timespec start, struct timespec stop){
     long start_sec_as_nano = start.tv_sec * 1E+9;
 	long stop_sec_as_nano = stop.tv_sec * 1E+9;
 	return ((stop_sec_as_nano + stop.tv_nsec) - (start_sec_as_nano + start.tv_nsec));
@@ -49,7 +88,7 @@ buffer* createBuffer(uint32_t maxLength) {
     return ret;
 }
 
-**
+/**
  * Erstellt einen neuen Buffer ohne neuen Speicher zu allokieren.
  * Bekommt speicher als Argument "existingBuffer" übergeben.
  *
@@ -93,14 +132,15 @@ void freeBuffer(buffer *bufferToFree) {
  *
  * @param socket
  * @param length
+ * @param p addrinfo struct für recvfrom()
  * @return buffer mit den empfangenen Daten
  */
-buffer* recvBytesAsBuffer(int socket, int length) {
+buffer* recvBytesAsBuffer(int socket, int length, struct addrinfo *p) {
     buffer *temp = createBuffer(length);
     INVARIANT(temp != NULL, NULL, "");
 
     while (temp->length < temp->maxLength) {
-        int recvLength = recv(socket, (temp->buff + temp->length), temp->maxLength - temp->length, 0);
+        int recvLength = recvfrom(socket, (temp->buff + temp->length), temp->maxLength - temp->length, 0, p->ai_addr, p->ai_addrlen);
         INVARIANT_CB(recvLength != -1, NULL, "RecvError", {
             freeBuffer(temp);
         })
@@ -112,42 +152,20 @@ buffer* recvBytesAsBuffer(int socket, int length) {
 }
 
 /**
- * Recv "length" bytes über den angegebenen socket und speichere den vaue in buff
- *
- * @param socket
- * @param length
- * @param buff
- * @return anzahl an empfangen bytes, -1 bei Fehler
- */
-int recvBytes(int socket, int length, void* buff) {
-    int totalRecvLength = 0;
-
-    while (totalRecvLength < length) {
-        int recvLength = recv(socket, (buff + totalRecvLength), length - totalRecvLength, 0);
-        INVARIANT(recvLength != -1, -1, "RecvError")
-
-        totalRecvLength += recvLength;
-    }
-
-    INVARIANT(totalRecvLength == length, -1, "RecvError: Did not receive all bytes")
-
-    return totalRecvLength;
-}
-
-/**
  * Hilfsfunktion die "length" bytes von value über den übergebenen socket verschickt.
  *
  * @param socket Socket über den "value" verschickt werden soll
  * @param value
  * @param length Anzahl an Bytes die von "value" verschickt werden sollen
+ * @param p addrinfo struct für sendto()
  * @return -1 bei Fehler, ansonsten anzahl an verschickten bytes
  */
-int sendAll(int socket, void* value, uint32_t length) {
+int sendAll(int socket, void* value, uint32_t length, struct addrinfo *p) {
     int totalSend = 0;
 
-    // send until everything is send
+    // sendto server until everything is send
     while (totalSend < length) {
-        int sendn = send(socket, value + totalSend, length - totalSend, 0);
+        int sendn = sendto(socket, value + totalSend, length - totalSend, 0, p->ai_addr, p->ai_addrlen);
         INVARIANT(sendn != -1, -1, "Failed to send all bytes")
 
         totalSend += sendn;
@@ -170,94 +188,6 @@ struct addrinfo getHints() {
 uint32_t addrinfoToServerAddress(struct addrinfo *addr) {
     struct sockaddr_in *serverIpAddr = (struct sockaddr_in*) addr->ai_addr;
     return serverIpAddr->sin_addr.s_addr;
-}
-
-int setupServer(char address[], char port[], uint32_t *ownIpAddr) {
-    struct addrinfo hints = getHints(), *res, *p;
-    int status; // Keep track of possible errors
-
-    // Get address info and store results in res
-    status = getaddrinfo(address, port, &hints, &res);
-    INVARIANT(status == 0, -1, "Failed to get address info")
-
-    int socketServer;
-    int yes = 1;
-    for(p = res; p != NULL; p = p->ai_next) {
-        // Create the socket using the address info in res
-        socketServer = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        INVARIANT_CONTINUE_CB(socketServer != -1, "", {});
-
-        // Set socket option to reuse the port.
-        // Otherwise it fails after restarting the server, since the port is still in use.
-        int sockOptStatus = setsockopt(socketServer, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-        INVARIANT_CONTINUE_CB(sockOptStatus != -1, "", {
-            close(socketServer);
-        });
-
-        // Bind the server address to the socket
-        int bindStatus = bind(socketServer, p->ai_addr, p->ai_addrlen);
-        INVARIANT_CONTINUE_CB(bindStatus != -1, "", {
-            close(socketServer);
-        });
-
-        *ownIpAddr = addrinfoToServerAddress(p);
-
-        break;
-    }
-
-    INVARIANT(p != NULL, -1, "Server: failed to bind");
-
-    return socketServer;
-}
-
-int setupClient(char dnsAddress[], char port[]) {
-    struct addrinfo hints = getHints(), *res, *p;
-    int status; // Keep track of possible errors
-
-    // Get address info and store results in res
-    status = getaddrinfo(dnsAddress, port, &hints, &res);
-    INVARIANT(status == 0, -1, "Failed to get address info")
-
-    int clientSocket = 0;
-    for (p = res; p != NULL; p = p->ai_next) {
-        clientSocket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        INVARIANT_CONTINUE_CB(clientSocket != -1, "", {})
-
-        //Fehler Abfang falls Connection nicht established werden kann
-        int connectStatus = connect(clientSocket, p->ai_addr, p->ai_addrlen);
-        INVARIANT_CONTINUE_CB(connectStatus != -1, "", {
-            close(clientSocket);
-        })
-
-        break;  //falls socket & connect geklappt haben -> haben wir eine passende Verbindung gefunden
-    }
-
-    //Fehler Abfang falls gar keine Adresse aus addressinfo gepasst hat
-    INVARIANT(p != NULL, -1, "Client konnt nicht connecten");
-
-    return clientSocket;
-}
-
-int setupClientWithAddr(uint32_t s_addr, uint16_t port) {
-    struct addrinfo hints = getHints();
-
-    struct in_addr *addrIn = calloc(1, sizeof(struct in_addr));
-    addrIn->s_addr = s_addr;
-
-    struct sockaddr_in *addr = calloc(1, sizeof(struct sockaddr_in));
-    addr->sin_addr = *addrIn;
-    addr->sin_port = htons(port);
-    addr->sin_family = AF_INET;
-
-    int clientSocket = socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
-    INVARIANT(clientSocket != -1, -1, "Failed to create socket")
-    //printf("next connect\n");
-    int connectStatus = connect(clientSocket, (struct sockaddr *) addr, sizeof(struct sockaddr_in));
-    INVARIANT_CB(connectStatus != -1, -1, "Failed to connect to lookup address",{
-        close(clientSocket);
-    })
-    //printf("after connecet\n");
-    return clientSocket;
 }
 
 /**

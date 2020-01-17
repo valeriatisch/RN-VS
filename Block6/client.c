@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <time.h>
+#include "include/sockUtils.h"
+
 
 #define SERVERPORT "4950"	// the port users will be connecting to
 
@@ -55,16 +57,17 @@ int main(int argc, char *argv[])
 			return 2;
 		}
 		
+		double* delay_arr = calloc(8, sizeof(double));
 		//send ntp-protocol and receive from server
 		for(int j = 0; j < n; j++) {
-			//get time t_1
-			struct timespec start, stop;
+
+			struct timespec start, stop, sent, received;
 			// get system time at start
 			getTime(start);
 
-			//send and wait for answer
-			sendPacket(j, sockfd);//TODO
-			receivePacket(sockfd);//TODO
+			//send protocol, return timestamp as timespec struct in sent
+			sent = sendPacket(sockfd, p);//TODO
+			receivePacket(j, sockfd, start, delay_arr);//TODO
 			
 			//get system time at stop
 			getTime(stop);

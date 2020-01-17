@@ -37,16 +37,16 @@ protocol *decodeProtocol(buffer* buff){
     return createProtocol(LI, VN, mode, stratum, poll, precision, root_delay, root_dispersion, ref_ID, ref_ts, orig_ts, rec_ts, trans_ts);
 }
 
-int sendProtocol(int socket, protocol* p){
+int sendProtocol(int socket, protocol* p, struct addrinfo *addr){
     buffer *b = encodeProtocol(p);
     fprintf(stderr,"===========================\tSend Protocol\t=========================== ");
     printProtocol(p);
 
-    return sendAll(socket, b->buff, b->length);
+    return sendAll(socket, b->buff, b->length, addr);
 }
 
-protocol *recvProtocol(int socket){
-    buffer *buff = recvBytesAsBuffer(socket, 48);
+protocol *recvProtocol(int socket, struct addrinfo *addr){
+    buffer *buff = recvBytesAsBuffer(socket, 48, addr);
     protocol *p = decodeProtocol(buff);
     fprintf(stderr,"===========================\tReceived Protocol\t=========================== ");
     printProtocol(p);

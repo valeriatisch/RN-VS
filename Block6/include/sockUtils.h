@@ -46,49 +46,23 @@
     continue; \
   }
 
-#define OWN_SERVER 0
-#define NEXT_SERVER 1
-#define UNKNOWN_SERVER 2
+struct timespec sendPacket(int sockfd, struct addrinfo *p);
+void receivePacket(int n, int sockfd, double* delay_arr, struct timespec start, struct addrinfo *p_arg);
 
-typedef struct serverArgs_ {
-    int ownID;
-    char* ownIP;
-    char* ownPort;
-    uint32_t ownIpAddr;
-
-    int nextID;
-    char* nextIP;
-    char* nextPort;
-
-    int prevID;
-    char* prevIP;
-    char* prevPort;
-} serverArgs;
-
-typedef struct _buffer {
-    uint8_t *buff;
-    uint32_t length;
-    uint32_t maxLength;
-} buffer;
-
-void getTime(timespec time_to_get);
-long getTimeDiff_asNano(timespec start, timespec stop);
+double get_max(double* array);
+double get_min_not_zero(double* array);
+void getTime(struct timespec time_to_get);
+long getTimeDiff_asNano(struct timespec start, struct timespec stop);
 void timeSleep_nano(long time_nano);
 uint32_t ip_to_uint(char *ip_addr);
-//void start_stabilize(serverArgs* args);
-//void stabilize(lookup* stabilize_msg, char* nextIP, char* nextPort);
+
 buffer* createBuffer(uint32_t length);
 buffer* createBufferFrom(uint32_t length, void* existingBuffer);
 void freeBuffer(buffer *buff);
 buffer* copyBuffer(buffer* b);
 
-int recvBytes(int socket, int length, void* buff);
-buffer* recvBytesAsBuffer(int socket, int length);
+buffer* recvBytesAsBuffer(int socket, int length, struct addrinfo *p);
 int sendAll(int socket, void* value, uint32_t length);
-
-int setupServer(char address[], char port[], uint32_t *ownIpAddr);
-int setupClient(char dnsAddress[], char port[]);
-int setupClientWithAddr(uint32_t s_addr, uint16_t port);
 
 int checkBit(unsigned bitsequence, int n);
 
