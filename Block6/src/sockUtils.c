@@ -10,7 +10,11 @@
 struct timespec sendPacket(int sockfd, struct addrinfo *p){
     //send ntp protocol
     protocol* prot = createProtocol(35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    sendProtocol(sockfd, prot, p);
+    int status = sendProtocol(sockfd, prot, p);
+    if(status == -1){
+        perror("failed to send protocol");
+        exit(24);
+    } 
     
     //timestamp t1
     struct timespec sent;
