@@ -59,22 +59,24 @@ int main(int argc, char *argv[])
 		
 		double* delay_arr = calloc(8, sizeof(double));
 		//send ntp-protocol and receive from server
+		perror("-----------------------------------------------new Server-----------------------------------------------\a\n");
 		for(int j = 0; j < n; j++) {
 
-			struct timespec start, stop, sent, received;
+			struct timespec start, stop; // to calculate 8 seconds
+			struct timespec sent; //to calculate message time
 			// get system time at start
 			getTime(start);
 
 			//send protocol, return timestamp as timespec struct in sent
-			sent = sendPacket(sockfd, p);//TODO
-			receivePacket(j, sockfd, start, delay_arr);//TODO
+			sent = sendPacket(sockfd, p);
+			receivePacket(j, sockfd, delay_arr, sent, p);
 			
 			//get system time at stop
 			getTime(stop);
 
 			//sleep 8 - (t_2 - t_1) seconds
 			long diff_nano = getTimeDiff_asNano(start,stop);
-			timeSleep_nano(diff_nano);
+			timeSleep_nano((8*(1E+9)) + diff_nano);
 			
 		}
 

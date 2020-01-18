@@ -49,6 +49,11 @@
 struct timespec sendPacket(int sockfd, struct addrinfo *p);
 void receivePacket(int n, int sockfd, double* delay_arr, struct timespec start, struct addrinfo *p_arg);
 
+void print_result(uint32_t IP,int nummer, double root_dispersion, double dispersion8, double delay, double offset);
+double dispersion8(double *delay_arr);
+double delay_as_seconds(double* delay_arr, int n, double t1, double t2, double t3, double t4);
+double offset_as_seconds(double t1, double t2, double t3, double t4);
+
 double get_max(double* array);
 double get_min_not_zero(double* array);
 void getTime(struct timespec time_to_get);
@@ -62,7 +67,7 @@ void freeBuffer(buffer *buff);
 buffer* copyBuffer(buffer* b);
 
 buffer* recvBytesAsBuffer(int socket, int length, struct addrinfo *p);
-int sendAll(int socket, void* value, uint32_t length);
+int sendAll(int socket, void* value, uint32_t length, struct addrinfo *p);
 
 int checkBit(unsigned bitsequence, int n);
 

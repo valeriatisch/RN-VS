@@ -9,7 +9,7 @@
 
 struct timespec sendPacket(int sockfd, struct addrinfo *p){
     //send ntp protocol
-    protocol* prot = createProtocol(0, 4, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    protocol* prot = createProtocol(35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     sendProtocol(sockfd, prot, p);
     
     //timestamp t1
@@ -18,14 +18,45 @@ struct timespec sendPacket(int sockfd, struct addrinfo *p){
     return sent;  
 }
 
-void receivePacket(int n, int sockfd, double* delay_arr, struct timespec start, struct addrinfo *p_arg){
+void receivePacket(int n, int sockfd, double* delay_arr, struct timespec sent, struct addrinfo *p_arg){
     protocol *prot = recvProtocol(sockfd, p_arg);
 
     //timestamp t4
     struct timespec received;
     getTime(received);
 
-    print_result(); 
+    //get ip from addrinfo struct
+    struct sockaddr_in *tmp = (struct sockaddr_in*) p_arg; 
+    uint32_t ip = inet_ntoa(tmp->sin_addr);
+
+    //timestamp structs to seconds
+    double t_2 = (prot->rec_ts_sec - OFFSET) + (prot->rec_ts_fsec / 4294967296); // 2^32 
+    double t_3 = (prot->trans_ts_sec - OFFSET) + (prot->trans_ts_sec / 4294967296);
+
+    double t_1 =  sent.tv_sec + ((double) sent.tv_nsec) / 1E+9;
+    double t_4 =  received.tv_sec + ((double) received.tv_nsec) / 1E+9;
+
+    print_result(ip, n, prot->root_dispersion, disperion8(delay_arr), delay_as_seconds(delay_arr, n, t_1, t_2, t_3, t_4), offset_as_seconds(t_1, t_2, t_3, t_4)); 
+}
+
+void print_result(uint32_t IP,int nummer, double root_dispersion, double dispersion8, double delay, double offset){
+    printf("%d;%d;%ld;%ld;%ld;%ld\n", IP, nummer, root_dispersion, dispersion8, delay, offset);
+}
+
+double dispersion8(double* delay_arr) {
+    double max = get_max(delay_arr);
+    double min = get_min_not_zero(delay_arr);
+    return (max - min);
+}
+
+double delay_as_seconds(double* delay_arr, int n, double t1, double t2, double t3, double t4) {
+    double seconds = ((t4 - t1)  - (t3 - t2)) / 2;
+    delay_arr[n % 8] = seconds;
+    return seconds;
+}
+
+double offset_as_seconds(double t1, double t2, double t3, double t4){
+    return ((t2 - t1) + (t3 - t4))/2;
 }
 
 double get_max(double* array) {
@@ -53,8 +84,8 @@ void getTime(struct timespec time_to_get) {
 } 
 
 long getTimeDiff_asNano(struct timespec start, struct timespec stop){
-    long start_sec_as_nano = start.tv_sec * 1E+9;
-	long stop_sec_as_nano = stop.tv_sec * 1E+9;
+    long start_sec_as_nano = start.tv_sec * (1E+9);
+	long stop_sec_as_nano = stop.tv_sec * (1E+9);
 	return ((stop_sec_as_nano + stop.tv_nsec) - (start_sec_as_nano + start.tv_nsec));
 }
 
@@ -65,8 +96,8 @@ void timeSleep_nano(long time_nano) {
     }
     else {
         struct timespec time;
-        time.tv_sec = time_nano / 1E+9;
-        time.tv_nsec = time_nano % (long) 1E+9;
+        time.tv_sec = time_nano / (1E+9);
+        time.tv_nsec = time_nano % (long) (1E+9);
         nanosleep(time, NULL);
     }
 }
@@ -125,7 +156,6 @@ void freeBuffer(buffer *bufferToFree) {
         free(bufferToFree);
     }
 }
-
 
 /**
  * Recv "length" bytes über den angegebenen socket.

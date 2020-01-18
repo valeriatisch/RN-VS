@@ -1,20 +1,29 @@
 #include "../include/sockUtils.h"
+#define OFFSET 2208988800
 
 typedef struct _protocol  {
-    int LI;
-    int VN;
-    int mode;
-    int stratum;
-    int poll;
-    int precision;
+    uint8_t li_vn_mode;
+    
+    uint8_t stratum;
+    uint8_t poll;
+    uint8_t precision;
+
     uint32_t root_delay;
     uint32_t root_dispersion;
     uint32_t ref_ID;
-    uint64_t ref_ts;
-    uint64_t orig_ts;
-    uint64_t rec_ts;
-    uint64_t trans_ts;
-}protocol;
+
+    uint32_t ref_ts_sec;
+    uint32_t ref_ts_fsec;
+
+    uint32_t orig_ts_sec;
+    uint32_t orig_ts_fsec;
+    
+    uint32_t rec_ts_sec;
+    uint32_t rec_ts_fsec;
+    
+    uint32_t trans_ts_sec;
+    uint32_t trans_ts_fsec;
+} protocol;
 
 typedef struct _buffer {
     uint8_t *buff;
@@ -22,8 +31,8 @@ typedef struct _buffer {
     uint32_t maxLength;
 } buffer;
 
-protocol *createProtocol(int LI, int VN, int mode, int stratum, int poll, int precision, uint32_t root_delay, uint32_t root_dispersion,
-uint32_t ref_ID, uint64_t ref_ts, uint64_t orig_ts, uint64_t rec_ts, uint64_t trans_ts)
+protocol *createProtocol(uint8_t li_vn_mode, uint8_t stratum, uint8_t poll, uint8_t precision, uint32_t root_delay, uint32_t root_dispersion, uint32_t ref_ID, 
+uint32_t ref_ts_sec, uint32_t ref_ts_fsec, uint32_t orig_ts_sec, uint32_t orig_ts_fsec, uint32_t rec_ts_sec, uint32_t rec_ts_fsec, uint32_t trans_ts_sec, uint32_t trans_ts_fsec);
 buffer *encodeProtocol(protocol *p);
 protocol *decodeProtocol(buffer* buff);
 
