@@ -1,25 +1,21 @@
-#include <sys/socket.h>
-#include <stdio.h>
-#include <netdb.h>
-#include <string.h>
-#include <unistd.h>
-#include "stdlib.h"
-#include <time.h>
+
 #include "../include/protocol.h"
+#include "../include/sockUtils.h"
 
 struct timespec sendPacket(int sockfd, struct addrinfo *p){
     //send ntp protocol
-    protocol* prot = createProtocol(35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    protocol* prot = createProtocol(35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     int status = sendProtocol(sockfd, prot, p);
     if(status == -1){
         perror("failed to send protocol");
         exit(24);
-    } 
-    
+    }
+
     //timestamp t1
     struct timespec sent;
-    getTime(sent);
-    return sent;  
+    getTime(&sent);
+    return sent;
 }
 
 void receivePacket(int n, int sockfd, double* delay_arr, struct timespec sent, struct addrinfo *p_arg){
@@ -27,24 +23,37 @@ void receivePacket(int n, int sockfd, double* delay_arr, struct timespec sent, s
 
     //timestamp t4
     struct timespec received;
-    getTime(received);
+    getTime(&received);
 
     //get ip from addrinfo struct
-    struct sockaddr_in *tmp = (struct sockaddr_in*) p_arg; 
-    uint32_t ip = inet_ntoa(tmp->sin_addr);
+    struct sockaddr_in *ipv4 = (struct sockaddr_in *)p_arg->ai_addr;
+    char ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(ipv4->sin_addr), ip, INET_ADDRSTRLEN);
+
+    //root dispersion to seconds
+    int root_dispersion_seconds = prot->root_dispersion_s;
+    double root_dispersion_non_divided_fraction = prot->root_dispersion_f;
+    double root_dispersion_fraction = root_dispersion_non_divided_fraction / 65536; // 2^16
+    double root_dispersion = root_dispersion_seconds + root_dispersion_fraction;
 
     //timestamp structs to seconds
-    double t_2 = (prot->rec_ts_sec - OFFSET) + (prot->rec_ts_fsec / 4294967296); // 2^32 
-    double t_3 = (prot->trans_ts_sec - OFFSET) + (prot->trans_ts_sec / 4294967296);
+    int t2_seconds = prot->rec_ts_sec - OFFSET;
+    int t3_seconds = prot->trans_ts_sec - OFFSET;
+    double t2_non_divided_fraction = prot->rec_ts_fsec;
+    double t3_non_divided_fraction = prot->trans_ts_fsec;
+    double t2_fraction = t2_non_divided_fraction / 4294967296;
+    double t3_fraction = t3_non_divided_fraction / 4294967296;
+    double t_2 = t2_seconds + t2_fraction; // 2^32
+    double t_3 = t3_seconds + t3_fraction;
 
     double t_1 =  sent.tv_sec + ((double) sent.tv_nsec) / 1E+9;
     double t_4 =  received.tv_sec + ((double) received.tv_nsec) / 1E+9;
 
-    print_result(ip, n, prot->root_dispersion, disperion8(delay_arr), delay_as_seconds(delay_arr, n, t_1, t_2, t_3, t_4), offset_as_seconds(t_1, t_2, t_3, t_4)); 
+    print_result(ip, n, root_dispersion, dispersion8(delay_arr), delay_as_seconds(delay_arr, n, t_1, t_2, t_3, t_4), offset_as_seconds(t_1, t_2, t_3, t_4));
 }
 
-void print_result(uint32_t IP,int nummer, double root_dispersion, double dispersion8, double delay, double offset){
-    printf("%d;%d;%ld;%ld;%ld;%ld\n", IP, nummer, root_dispersion, dispersion8, delay, offset);
+void print_result(char* IP,int nummer, double root_dispersion, double dispersion8, double delay, double offset){
+    printf("%s;%d;%f;%f;%f;%f\n", IP, nummer, root_dispersion, dispersion8, delay, offset);
 }
 
 double dispersion8(double* delay_arr) {
@@ -60,7 +69,7 @@ double delay_as_seconds(double* delay_arr, int n, double t1, double t2, double t
 }
 
 double offset_as_seconds(double t1, double t2, double t3, double t4){
-    return ((t2 - t1) + (t3 - t4))/2;
+    return (((t2 - t1) + (t3 - t4))/2);
 }
 
 double get_max(double* array) {
@@ -80,17 +89,17 @@ double get_min_not_zero(double* array) {
     return min_not_zero;
 }
 
-void getTime(struct timespec time_to_get) {
-    if (clock_gettime(CLOCK_REALTIME, &time_to_get) == -1) {
-		peeror("failed to get time");
-		exit(1);
-	}
-} 
+void getTime(struct timespec *time_to_get) {
+    if (clock_gettime(CLOCK_REALTIME, time_to_get) == -1) {
+        perror("failed to get time");
+        exit(1);
+    }
+}
 
 long getTimeDiff_asNano(struct timespec start, struct timespec stop){
     long start_sec_as_nano = start.tv_sec * (1E+9);
-	long stop_sec_as_nano = stop.tv_sec * (1E+9);
-	return ((stop_sec_as_nano + stop.tv_nsec) - (start_sec_as_nano + start.tv_nsec));
+    long stop_sec_as_nano = stop.tv_sec * (1E+9);
+    return ((stop_sec_as_nano + stop.tv_nsec) - (start_sec_as_nano + start.tv_nsec));
 }
 
 void timeSleep_nano(long time_nano) {
@@ -102,7 +111,7 @@ void timeSleep_nano(long time_nano) {
         struct timespec time;
         time.tv_sec = time_nano / (1E+9);
         time.tv_nsec = time_nano % (long) (1E+9);
-        nanosleep(time, NULL);
+        nanosleep(&time, NULL);
     }
 }
 
@@ -142,13 +151,6 @@ buffer* createBufferFrom(uint32_t length, void* existingBuffer) {
     return ret;
 }
 
-buffer* copyBuffer(buffer* b) {
-    uint8_t *cpy = calloc(b->length, sizeof(uint8_t));
-    memcpy(cpy, b->buff, b->length);
-    buffer* ret = createBufferFrom(b->length, cpy);
-    return ret;
-}
-
 /**
  * Gibt den Speicher von einem buffer struct frei
  *
@@ -171,10 +173,12 @@ void freeBuffer(buffer *bufferToFree) {
  */
 buffer* recvBytesAsBuffer(int socket, int length, struct addrinfo *p) {
     buffer *temp = createBuffer(length);
+    struct sockaddr_storage their_addr;
+    socklen_t addr_len = sizeof their_addr;
     INVARIANT(temp != NULL, NULL, "");
 
     while (temp->length < temp->maxLength) {
-        int recvLength = recvfrom(socket, (temp->buff + temp->length), temp->maxLength - temp->length, 0, p->ai_addr, p->ai_addrlen);
+        int recvLength = recvfrom(socket, (temp->buff + temp->length), temp->maxLength - temp->length, 0, (struct sockaddr *)&their_addr, &addr_len);
         INVARIANT_CB(recvLength != -1, NULL, "RecvError", {
             freeBuffer(temp);
         })
@@ -196,41 +200,17 @@ buffer* recvBytesAsBuffer(int socket, int length, struct addrinfo *p) {
  */
 int sendAll(int socket, void* value, uint32_t length, struct addrinfo *p) {
     int totalSend = 0;
+    char ipv4[INET_ADDRSTRLEN];
+    struct sockaddr_in *addr4;
 
     // sendto server until everything is send
     while (totalSend < length) {
         int sendn = sendto(socket, value + totalSend, length - totalSend, 0, p->ai_addr, p->ai_addrlen);
-        INVARIANT(sendn != -1, -1, "Failed to send all bytes")
-
+        INVARIANT(sendn != -1,  -1, "Failed to send all bytes")
         totalSend += sendn;
     }
 
     INVARIANT(totalSend == length, -1, "Failed to send all bytes")
 
     return totalSend;
-}
-
-struct addrinfo getHints() {
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;     //AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-    return hints;
-}
-
-uint32_t addrinfoToServerAddress(struct addrinfo *addr) {
-    struct sockaddr_in *serverIpAddr = (struct sockaddr_in*) addr->ai_addr;
-    return serverIpAddr->sin_addr.s_addr;
-}
-
-/**
- * Hilfsfunktion die schaut ob das n-te bit in der bitsequence gleich 1 ist.
- *
- * @param bitsequence
- * @param n
- * @return 1 wenn bit an stelle n 1 ist, ansonsten 0
- */
-int checkBit(unsigned bitsequence, int n) {
-    return (bitsequence >> n) & 1;
 }
